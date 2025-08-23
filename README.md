@@ -1,0 +1,2 @@
+# SmartSpender
+Budget planner
