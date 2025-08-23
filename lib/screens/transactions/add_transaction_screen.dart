@@ -173,9 +173,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.transaction == null ? 'Add Transaction' : 'Edit Transaction',
-        ),
+        title: Text(widget.transaction == null ? 'Add Transaction' : 'Edit Transaction'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (_isLoading)
             const Center(

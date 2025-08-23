@@ -23,7 +23,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     super.initState();
     // Load transactions when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TransactionProvider>(context, listen: false).loadTransactions();
+      Provider.of<TransactionProvider>(
+        context,
+        listen: false,
+      ).loadTransactions();
     });
   }
 
@@ -66,9 +69,11 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     return iconMap[iconName] ?? Icons.category;
   }
 
-  List<model.Transaction> _getFilteredTransactions(List<model.Transaction> transactions) {
+  List<model.Transaction> _getFilteredTransactions(
+    List<model.Transaction> transactions,
+  ) {
     var filtered = transactions;
-    
+
     // Filter by type
     switch (_selectedFilter) {
       case 'income':
@@ -78,14 +83,17 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
         filtered = filtered.where((t) => t.type == 'expense').toList();
         break;
     }
-    
+
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((transaction) {
-        return transaction.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false;
+        return transaction.description?.toLowerCase().contains(
+              _searchQuery.toLowerCase(),
+            ) ??
+            false;
       }).toList();
     }
-    
+
     return filtered;
   }
 
@@ -110,15 +118,22 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-      final success = await transactionProvider.deleteTransaction(transaction.id!);
-      
+      final transactionProvider = Provider.of<TransactionProvider>(
+        context,
+        listen: false,
+      );
+      final success = await transactionProvider.deleteTransaction(
+        transaction.id!,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success 
-                ? 'Transaction deleted successfully' 
-                : transactionProvider.error ?? 'Failed to delete transaction'),
+            content: Text(
+              success
+                  ? 'Transaction deleted successfully'
+                  : transactionProvider.error ?? 'Failed to delete transaction',
+            ),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
@@ -131,6 +146,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -143,10 +159,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                 value: 'all',
                 child: Text('All Transactions'),
               ),
-              const PopupMenuItem(
-                value: 'income',
-                child: Text('Income Only'),
-              ),
+              const PopupMenuItem(value: 'income', child: Text('Income Only')),
               const PopupMenuItem(
                 value: 'expense',
                 child: Text('Expenses Only'),
@@ -188,7 +201,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               },
             ),
           ),
-          
+
           // Summary Cards
           Consumer<TransactionProvider>(
             builder: (context, transactionProvider, child) {
@@ -254,7 +267,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Card(
-                        color: transactionProvider.balance >= 0 ? Colors.blue[50] : Colors.orange[50],
+                        color: transactionProvider.balance >= 0
+                            ? Colors.blue[50]
+                            : Colors.orange[50],
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
                           child: Column(
@@ -262,14 +277,18 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                               Text(
                                 'Balance',
                                 style: TextStyle(
-                                  color: transactionProvider.balance >= 0 ? Colors.blue[700] : Colors.orange[700],
+                                  color: transactionProvider.balance >= 0
+                                      ? Colors.blue[700]
+                                      : Colors.orange[700],
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                               Text(
                                 '\$${transactionProvider.balance.toStringAsFixed(2)}',
                                 style: TextStyle(
-                                  color: transactionProvider.balance >= 0 ? Colors.blue[700] : Colors.orange[700],
+                                  color: transactionProvider.balance >= 0
+                                      ? Colors.blue[700]
+                                      : Colors.orange[700],
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -284,9 +303,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               );
             },
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Transactions List
           Expanded(
             child: Consumer2<TransactionProvider, CategoryProvider>(
@@ -313,7 +332,8 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: () => transactionProvider.loadTransactions(),
+                          onPressed: () =>
+                              transactionProvider.loadTransactions(),
                           child: const Text('Retry'),
                         ),
                       ],
@@ -321,7 +341,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   );
                 }
 
-                final filteredTransactions = _getFilteredTransactions(transactionProvider.transactions);
+                final filteredTransactions = _getFilteredTransactions(
+                  transactionProvider.transactions,
+                );
 
                 if (filteredTransactions.isEmpty) {
                   return Center(
@@ -335,11 +357,11 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _searchQuery.isNotEmpty 
+                          _searchQuery.isNotEmpty
                               ? 'No transactions found for "$_searchQuery"'
-                              : _selectedFilter == 'all' 
-                                  ? 'No transactions found'
-                                  : 'No ${_selectedFilter} transactions found',
+                              : _selectedFilter == 'all'
+                              ? 'No transactions found'
+                              : 'No ${_selectedFilter} transactions found',
                           style: const TextStyle(fontSize: 18),
                         ),
                         const SizedBox(height: 8),
@@ -359,8 +381,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                     itemCount: filteredTransactions.length,
                     itemBuilder: (context, index) {
                       final transaction = filteredTransactions[index];
-                      final category = categoryProvider.getCategoryById(transaction.categoryId);
-                      
+                      final category = categoryProvider.getCategoryById(
+                        transaction.categoryId,
+                      );
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
@@ -368,13 +392,13 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: category != null 
+                              color: category != null
                                   ? _hexToColor(category.color ?? '#FF6B6B')
                                   : Colors.grey,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
-                              category != null 
+                              category != null
                                   ? _getIconData(category.icon ?? 'category')
                                   : Icons.category,
                               color: Colors.white,
@@ -402,36 +426,84 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                               ),
                             ],
                           ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                '${transaction.type == 'income' ? '+' : '-'}\$${transaction.amount.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: transaction.type == 'income' 
-                                      ? Colors.green 
-                                      : Colors.red,
-                                ),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${transaction.type == 'income' ? '+' : '-'}\$${transaction.amount.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: transaction.type == 'income'
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
+                                  ),
+                                  Text(
+                                    transaction.type.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: transaction.type == 'income'
+                                          ? Colors.green
+                                          : Colors.red,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                transaction.type.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: transaction.type == 'income' 
-                                      ? Colors.green 
-                                      : Colors.red,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              PopupMenuButton<String>(
+                                onSelected: (value) async {
+                                  switch (value) {
+                                    case 'edit':
+                                      final result = await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => AddTransactionScreen(transaction: transaction),
+                                        ),
+                                      );
+                                      if (result == true) {
+                                        transactionProvider.loadTransactions();
+                                      }
+                                      break;
+                                    case 'delete':
+                                      await _deleteTransaction(transaction);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.edit, size: 20),
+                                        SizedBox(width: 8),
+                                        Text('Edit'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, size: 20, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Delete', style: TextStyle(color: Colors.red)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                           onTap: () async {
                             final result = await Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => AddTransactionScreen(transaction: transaction),
+                                builder: (context) => AddTransactionScreen(
+                                  transaction: transaction,
+                                ),
                               ),
                             );
                             if (result == true) {
@@ -439,7 +511,6 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                               transactionProvider.loadTransactions();
                             }
                           },
-                          onLongPress: () => _deleteTransaction(transaction),
                         ),
                       );
                     },
@@ -459,7 +530,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           );
           if (result == true) {
             // Transaction was added, refresh the list
-            Provider.of<TransactionProvider>(context, listen: false).loadTransactions();
+            Provider.of<TransactionProvider>(
+              context,
+              listen: false,
+            ).loadTransactions();
           }
         },
         child: const Icon(Icons.add),

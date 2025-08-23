@@ -137,6 +137,7 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.category == null ? 'Add Category' : 'Edit Category'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (_isLoading)
             const Center(
