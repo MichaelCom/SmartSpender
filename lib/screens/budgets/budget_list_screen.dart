@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'add_budget_screen.dart';
 import '../../database/database_helper.dart';
+import '../../models/category.dart';
+import '../../models/transaction.dart';
 
 class BudgetListScreen extends StatefulWidget {
   const BudgetListScreen({super.key});
@@ -14,8 +16,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
   bool _showIncomeCategories = true;
   final DatabaseHelper _dbHelper = DatabaseHelper();
 
-  List<Map<String, dynamic>> _incomeCategories = [];
-  List<Map<String, dynamic>> _expenseCategories = [];
+  List<Category> _incomeCategories = [];
+  List<Category> _expenseCategories = [];
   bool _isLoading = true;
 
   @override
@@ -23,6 +25,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
     super.initState();
     _loadCategories();
   }
+
+  Map<int, double> _categoryAmounts = {};
 
   Future<void> _loadCategories() async {
     setState(() {
@@ -35,39 +39,30 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
       // Separate income and expense categories
       _incomeCategories = allCategories
-          .where((cat) => cat['type'] == 'income')
+          .where((cat) => cat.type == 'income')
           .toList();
       _expenseCategories = allCategories
-          .where((cat) => cat['type'] == 'expense')
+          .where((cat) => cat.type == 'expense')
           .toList();
 
-      // Add amount field by getting latest transactions for each category
-      for (var category in _incomeCategories) {
+      // Calculate amounts for each category
+      _categoryAmounts.clear();
+      for (var category in [..._incomeCategories, ..._expenseCategories]) {
         final transactions = await _dbHelper.getTransactions(
-          categoryId: category['id'],
+          categoryId: category.id!,
         );
         double totalAmount = 0.0;
         for (var transaction in transactions) {
-          totalAmount += transaction['amount'] as double;
+          totalAmount += transaction.amount;
         }
-        category['amount'] = totalAmount;
-      }
-
-      for (var category in _expenseCategories) {
-        final transactions = await _dbHelper.getTransactions(
-          categoryId: category['id'],
-        );
-        double totalAmount = 0.0;
-        for (var transaction in transactions) {
-          totalAmount += transaction['amount'] as double;
-        }
-        category['amount'] = totalAmount;
+        _categoryAmounts[category.id!] = totalAmount;
       }
     } catch (e) {
       print('Error loading categories: $e');
       // If no categories exist, we'll show empty lists
       _incomeCategories = [];
       _expenseCategories = [];
+      _categoryAmounts.clear();
     }
 
     setState(() {
@@ -114,14 +109,14 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
   double get _totalIncome {
     return _incomeCategories.fold(
       0.0,
-      (sum, cat) => sum + (cat['amount'] as double? ?? 0.0),
+      (sum, cat) => sum + (_categoryAmounts[cat.id] ?? 0.0),
     );
   }
 
   double get _totalExpenses {
     return _expenseCategories.fold(
       0.0,
-      (sum, cat) => sum + (cat['amount'] as double? ?? 0.0),
+      (sum, cat) => sum + (_categoryAmounts[cat.id] ?? 0.0),
     );
   }
 
@@ -424,14 +419,14 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
       itemCount: categories.length,
       itemBuilder: (context, index) {
         final category = categories[index];
-        final amount = category['amount'] as double? ?? 0.0;
+        final amount = _categoryAmounts[category.id] ?? 0.0;
         final hasAmount = amount > 0;
 
         // Get icon and color from database or use defaults
         IconData iconData = Icons.category;
         Color iconColor = _showIncomeCategories ? Colors.green : Colors.red;
 
-        if (category['icon'] != null) {
+        if (category.icon != null) {
           // Map icon names to IconData (simplified version)
           final iconMap = {
             'work': Icons.work,
@@ -453,13 +448,13 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
             'savings': Icons.savings,
             'more_horiz': Icons.more_horiz,
           };
-          iconData = iconMap[category['icon']] ?? Icons.category;
+          iconData = iconMap[category.icon!] ?? Icons.category;
         }
 
-        if (category['color'] != null) {
+        if (category.color != null) {
           // Parse color from hex string
           try {
-            final colorValue = int.parse(category['color'], radix: 16);
+            final colorValue = int.parse(category.color!, radix: 16);
             iconColor = Color(colorValue);
           } catch (e) {
             // Use default color if parsing fails
@@ -475,7 +470,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
               child: Icon(iconData, color: iconColor),
             ),
             title: Text(
-              category['name'] as String,
+              category.name,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             subtitle: Column(
@@ -535,10 +530,10 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
   void _editCategoryAmount(
     BuildContext context,
-    Map<String, dynamic> category,
+    Category category,
   ) {
     final TextEditingController amountController = TextEditingController();
-    final currentAmount = category['amount'] as double? ?? 0.0;
+    final currentAmount = _categoryAmounts[category.id] ?? 0.0;
     if (currentAmount > 0) {
       amountController.text = currentAmount.toStringAsFixed(2);
     }
@@ -560,7 +555,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                category['name'] as String,
+                category.name,
                 style: const TextStyle(fontSize: 18),
               ),
             ),
@@ -613,19 +608,20 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
                 try {
                   // Save transaction to database
-                  await _dbHelper.insertTransaction({
-                    'amount': amount,
-                    'description':
-                        '${_showIncomeCategories ? 'Income' : 'Expense'} update',
-                    'category_id': category['id'],
-                    'date': DateTime.now().toIso8601String().split('T')[0],
-                    'type': _showIncomeCategories ? 'income' : 'expense',
-                  });
+                  final transaction = Transaction(
+                    amount: amount,
+                    description: '${_showIncomeCategories ? 'Income' : 'Expense'} update',
+                    categoryId: category.id!,
+                    date: DateTime.now(),
+                    type: _showIncomeCategories ? 'income' : 'expense',
+                    createdAt: DateTime.now(),
+                  );
+                  await _dbHelper.insertTransaction(transaction);
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '${category['name']} updated to R${amount.toStringAsFixed(2)}',
+                        '${category.name} updated to R${amount.toStringAsFixed(2)}',
                       ),
                     ),
                   );
@@ -651,13 +647,13 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
   void _showDeleteConfirmation(
     BuildContext context,
-    Map<String, dynamic> category,
+    Category category,
   ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove Amount'),
-        content: Text('Remove all transactions from "${category['name']}"?'),
+        content: Text('Remove all transactions from "${category.name}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -670,16 +666,16 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
               try {
                 // Delete all transactions for this category
                 final transactions = await _dbHelper.getTransactions(
-                  categoryId: category['id'],
+                  categoryId: category.id!,
                 );
                 for (var transaction in transactions) {
-                  await _dbHelper.deleteTransaction(transaction['id']);
+                  await _dbHelper.deleteTransaction(transaction.id!);
                 }
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'All amounts removed from ${category['name']}',
+                      'All amounts removed from ${category.name}',
                     ),
                   ),
                 );

@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../models/category.dart' as model;
+import '../models/transaction.dart' as model;
+import '../models/budget.dart' as model;
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -71,36 +74,40 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX idx_budgets_category ON budgets(category_id)',
     );
-
-    // No default categories - user will add their own
-  }
-
-  Future<void> _insertDefaultCategories(Database db) async {
-    // Removed - no default categories
-    // User will add their own categories
   }
 
   // Category CRUD operations
-  Future<int> insertCategory(Map<String, dynamic> category) async {
+  Future<int> insertCategory(model.Category category) async {
     final db = await database;
-    category['created_at'] = DateTime.now().toIso8601String();
-    return await db.insert('categories', category);
+    final categoryMap = {
+      'name': category.name,
+      'type': category.type,
+      'color': category.color,
+      'icon': category.icon,
+      'created_at': category.createdAt.toIso8601String(),
+    };
+    return await db.insert('categories', categoryMap);
   }
 
-  Future<List<Map<String, dynamic>>> getCategories({String? type}) async {
+  Future<List<model.Category>> getCategories({String? type}) async {
     final db = await database;
+    List<Map<String, dynamic>> maps;
+    
     if (type != null) {
-      return await db.query(
+      maps = await db.query(
         'categories',
         where: 'type = ?',
         whereArgs: [type],
         orderBy: 'name ASC',
       );
+    } else {
+      maps = await db.query('categories', orderBy: 'name ASC');
     }
-    return await db.query('categories', orderBy: 'name ASC');
+
+    return maps.map((map) => model.Category.fromMap(map)).toList();
   }
 
-  Future<Map<String, dynamic>?> getCategoryById(int id) async {
+  Future<model.Category?> getCategoryById(int id) async {
     final db = await database;
     final result = await db.query(
       'categories',
@@ -108,32 +115,47 @@ class DatabaseHelper {
       whereArgs: [id],
       limit: 1,
     );
-    return result.isNotEmpty ? result.first : null;
+    return result.isNotEmpty ? model.Category.fromMap(result.first) : null;
   }
 
-  Future<int> updateCategory(int id, Map<String, dynamic> category) async {
+  Future<bool> updateCategory(model.Category category) async {
     final db = await database;
-    return await db.update(
+    final categoryMap = {
+      'name': category.name,
+      'type': category.type,
+      'color': category.color,
+      'icon': category.icon,
+    };
+    final result = await db.update(
       'categories',
-      category,
+      categoryMap,
       where: 'id = ?',
-      whereArgs: [id],
+      whereArgs: [category.id],
     );
+    return result > 0;
   }
 
-  Future<int> deleteCategory(int id) async {
+  Future<bool> deleteCategory(int id) async {
     final db = await database;
-    return await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+    final result = await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+    return result > 0;
   }
 
   // Transaction CRUD operations
-  Future<int> insertTransaction(Map<String, dynamic> transaction) async {
+  Future<int> insertTransaction(model.Transaction transaction) async {
     final db = await database;
-    transaction['created_at'] = DateTime.now().toIso8601String();
-    return await db.insert('transactions', transaction);
+    final transactionMap = {
+      'amount': transaction.amount,
+      'description': transaction.description,
+      'category_id': transaction.categoryId,
+      'date': transaction.date.toIso8601String(),
+      'type': transaction.type,
+      'created_at': transaction.createdAt.toIso8601String(),
+    };
+    return await db.insert('transactions', transactionMap);
   }
 
-  Future<List<Map<String, dynamic>>> getTransactions({
+  Future<List<model.Transaction>> getTransactions({
     String? startDate,
     String? endDate,
     int? categoryId,
@@ -167,64 +189,18 @@ class DatabaseHelper {
       whereArgs.add(type);
     }
 
-    return await db.query(
+    final maps = await db.query(
       'transactions',
       where: whereClause.isNotEmpty ? whereClause : null,
       whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       orderBy: 'date DESC, created_at DESC',
       limit: limit,
     );
+
+    return maps.map((map) => model.Transaction.fromMap(map)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getTransactionsWithCategories({
-    String? startDate,
-    String? endDate,
-    int? categoryId,
-    String? type,
-    int? limit,
-  }) async {
-    final db = await database;
-    String whereClause = '';
-    List<dynamic> whereArgs = [];
-
-    if (startDate != null) {
-      whereClause += 't.date >= ?';
-      whereArgs.add(startDate);
-    }
-
-    if (endDate != null) {
-      if (whereClause.isNotEmpty) whereClause += ' AND ';
-      whereClause += 't.date <= ?';
-      whereArgs.add(endDate);
-    }
-
-    if (categoryId != null) {
-      if (whereClause.isNotEmpty) whereClause += ' AND ';
-      whereClause += 't.category_id = ?';
-      whereArgs.add(categoryId);
-    }
-
-    if (type != null) {
-      if (whereClause.isNotEmpty) whereClause += ' AND ';
-      whereClause += 't.type = ?';
-      whereArgs.add(type);
-    }
-
-    return await db.rawQuery('''
-      SELECT 
-        t.*,
-        c.name as category_name,
-        c.icon as category_icon,
-        c.color as category_color
-      FROM transactions t
-      LEFT JOIN categories c ON t.category_id = c.id
-      ${whereClause.isNotEmpty ? 'WHERE $whereClause' : ''}
-      ORDER BY t.date DESC, t.created_at DESC
-      ${limit != null ? 'LIMIT $limit' : ''}
-    ''', whereArgs);
-  }
-
-  Future<Map<String, dynamic>?> getTransactionById(int id) async {
+  Future<model.Transaction?> getTransactionById(int id) async {
     final db = await database;
     final result = await db.query(
       'transactions',
@@ -232,35 +208,48 @@ class DatabaseHelper {
       whereArgs: [id],
       limit: 1,
     );
-    return result.isNotEmpty ? result.first : null;
+    return result.isNotEmpty ? model.Transaction.fromMap(result.first) : null;
   }
 
-  Future<int> updateTransaction(
-    int id,
-    Map<String, dynamic> transaction,
-  ) async {
+  Future<bool> updateTransaction(model.Transaction transaction) async {
     final db = await database;
-    return await db.update(
+    final transactionMap = {
+      'amount': transaction.amount,
+      'description': transaction.description,
+      'category_id': transaction.categoryId,
+      'date': transaction.date.toIso8601String(),
+      'type': transaction.type,
+    };
+    final result = await db.update(
       'transactions',
-      transaction,
+      transactionMap,
       where: 'id = ?',
-      whereArgs: [id],
+      whereArgs: [transaction.id],
     );
+    return result > 0;
   }
 
-  Future<int> deleteTransaction(int id) async {
+  Future<bool> deleteTransaction(int id) async {
     final db = await database;
-    return await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
+    final result = await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
+    return result > 0;
   }
 
   // Budget CRUD operations
-  Future<int> insertBudget(Map<String, dynamic> budget) async {
+  Future<int> insertBudget(model.Budget budget) async {
     final db = await database;
-    budget['created_at'] = DateTime.now().toIso8601String();
-    return await db.insert('budgets', budget);
+    final budgetMap = {
+      'category_id': budget.categoryId,
+      'amount': budget.amount,
+      'period': budget.period,
+      'start_date': budget.startDate.toIso8601String(),
+      'end_date': budget.endDate.toIso8601String(),
+      'created_at': budget.createdAt.toIso8601String(),
+    };
+    return await db.insert('budgets', budgetMap);
   }
 
-  Future<List<Map<String, dynamic>>> getBudgets({
+  Future<List<model.Budget>> getBudgets({
     int? categoryId,
     String? period,
   }) async {
@@ -279,40 +268,17 @@ class DatabaseHelper {
       whereArgs.add(period);
     }
 
-    return await db.query(
+    final maps = await db.query(
       'budgets',
       where: whereClause.isNotEmpty ? whereClause : null,
       whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       orderBy: 'created_at DESC',
     );
+
+    return maps.map((map) => model.Budget.fromMap(map)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getBudgetsWithCategories({
-    String? period,
-  }) async {
-    final db = await database;
-    String whereClause = '';
-    List<dynamic> whereArgs = [];
-
-    if (period != null) {
-      whereClause += 'b.period = ?';
-      whereArgs.add(period);
-    }
-
-    return await db.rawQuery('''
-      SELECT 
-        b.*,
-        c.name as category_name,
-        c.icon as category_icon,
-        c.color as category_color
-      FROM budgets b
-      LEFT JOIN categories c ON b.category_id = c.id
-      ${whereClause.isNotEmpty ? 'WHERE $whereClause' : ''}
-      ORDER BY b.created_at DESC
-    ''', whereArgs);
-  }
-
-  Future<Map<String, dynamic>?> getBudgetById(int id) async {
+  Future<model.Budget?> getBudgetById(int id) async {
     final db = await database;
     final result = await db.query(
       'budgets',
@@ -320,17 +286,26 @@ class DatabaseHelper {
       whereArgs: [id],
       limit: 1,
     );
-    return result.isNotEmpty ? result.first : null;
+    return result.isNotEmpty ? model.Budget.fromMap(result.first) : null;
   }
 
-  Future<int> updateBudget(int id, Map<String, dynamic> budget) async {
+  Future<bool> updateBudget(model.Budget budget) async {
     final db = await database;
-    return await db.update('budgets', budget, where: 'id = ?', whereArgs: [id]);
+    final budgetMap = {
+      'category_id': budget.categoryId,
+      'amount': budget.amount,
+      'period': budget.period,
+      'start_date': budget.startDate.toIso8601String(),
+      'end_date': budget.endDate.toIso8601String(),
+    };
+    final result = await db.update('budgets', budgetMap, where: 'id = ?', whereArgs: [budget.id]);
+    return result > 0;
   }
 
-  Future<int> deleteBudget(int id) async {
+  Future<bool> deleteBudget(int id) async {
     final db = await database;
-    return await db.delete('budgets', where: 'id = ?', whereArgs: [id]);
+    final result = await db.delete('budgets', where: 'id = ?', whereArgs: [id]);
+    return result > 0;
   }
 
   // Analytics and reporting methods
@@ -416,9 +391,7 @@ class DatabaseHelper {
 
   Future<void> clearAllCategories() async {
     final db = await database;
-    await db.delete(
-      'transactions',
-    ); // Delete transactions first due to foreign key
+    await db.delete('transactions'); // Delete transactions first due to foreign key
     await db.delete('categories');
   }
 

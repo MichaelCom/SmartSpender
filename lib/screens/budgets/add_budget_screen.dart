@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../database/database_helper.dart';
+import '../../models/category.dart';
+import '../../models/transaction.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   final Map<String, dynamic>? budget;
@@ -291,35 +293,37 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         
         // Check if category already exists
         final categories = await dbHelper.getCategories(type: type);
-        Map<String, dynamic>? categoryData = categories.firstWhere(
-          (cat) => cat['name'].toLowerCase() == categoryName.toLowerCase(),
-          orElse: () => <String, dynamic>{},
-        );
+        Category? categoryData;
         
-        // If category doesn't exist, create it
-        if (categoryData.isEmpty) {
-          final categoryId = await dbHelper.insertCategory({
-            'name': categoryName,
-            'type': type,
-            'icon': 'category', // Default icon
-            'color': widget.isIncomeCategory ? 'FF4CAF50' : 'FFF44336', // Green for income, red for expense
-          });
+        try {
+          categoryData = categories.firstWhere(
+            (cat) => cat.name.toLowerCase() == categoryName.toLowerCase(),
+          );
+        } catch (e) {
+          // Category doesn't exist, create it
+          final newCategory = Category(
+            name: categoryName,
+            type: type,
+            icon: 'category',
+            color: widget.isIncomeCategory ? 'FF4CAF50' : 'FFF44336',
+            createdAt: DateTime.now(),
+          );
           
-          categoryData = {
-            'id': categoryId,
-            'name': categoryName,
-            'type': type,
-          };
+          final categoryId = await dbHelper.insertCategory(newCategory);
+          categoryData = newCategory.copyWith(id: categoryId);
         }
         
         // Save as a transaction
-        await dbHelper.insertTransaction({
-          'amount': amount,
-          'description': description.isEmpty ? '$type entry for $categoryName' : description,
-          'category_id': categoryData['id'],
-          'date': DateTime.now().toIso8601String().split('T')[0],
-          'type': type,
-        });
+        final transaction = Transaction(
+          amount: amount,
+          description: description.isEmpty ? '$type entry for $categoryName' : description,
+          categoryId: categoryData.id!,
+          date: DateTime.now(),
+          type: type,
+          createdAt: DateTime.now(),
+        );
+        
+        await dbHelper.insertTransaction(transaction);
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
