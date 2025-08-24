@@ -10,6 +10,7 @@ import '../providers/category_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/budget_provider.dart';
 import '../utils/database_utils.dart';
+import '../widgets/logo_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -161,7 +162,8 @@ class DashboardTab extends StatelessWidget {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SmartSpender'),
+        title: const LogoWidget(width: 60, height: 60),
+        centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           PopupMenuButton<String>(

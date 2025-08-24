@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/category_provider.dart';
 import '../../models/category.dart' as model;
 import 'add_category_screen.dart';
+import '../../widgets/logo_widget.dart';
 
 class CategoryListScreen extends StatefulWidget {
   const CategoryListScreen({super.key});
@@ -108,7 +109,8 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Categories'),
+        title: const LogoWidget(width: 60, height: 60),
+        centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           PopupMenuButton<String>(

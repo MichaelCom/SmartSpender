@@ -4,6 +4,7 @@ import 'add_budget_screen.dart';
 import '../../database/database_helper.dart';
 import '../../models/category.dart';
 import '../../models/transaction.dart';
+import '../../widgets/logo_widget.dart';
 
 class BudgetListScreen extends StatefulWidget {
   const BudgetListScreen({super.key});
@@ -132,7 +133,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Income & Expenses'),
+        title: const LogoWidget(width: 60, height: 60),
+        centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
