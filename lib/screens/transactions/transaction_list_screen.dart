@@ -146,7 +146,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 60, height: 60),
+        title: const LogoWidget(width: 100, height: 100),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
@@ -215,7 +215,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                       child: Card(
                         color: Colors.green[50],
                         child: Padding(
-                          padding: const EdgeInsets.all(12.0),
+                          padding: const EdgeInsets.all(8.0),
                           child: Column(
                             children: [
                               Text(
@@ -223,14 +223,19 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 style: TextStyle(
                                   color: Colors.green[700],
                                   fontWeight: FontWeight.w500,
+                                  fontSize: 12,
                                 ),
                               ),
-                              Text(
-                                '\$${transactionProvider.totalIncome.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: Colors.green[700],
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(height: 2),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'R${NumberFormat('#,##0.00').format(transactionProvider.totalIncome)}',
+                                  style: TextStyle(
+                                    color: Colors.green[700],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
@@ -238,12 +243,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Card(
                         color: Colors.red[50],
                         child: Padding(
-                          padding: const EdgeInsets.all(12.0),
+                          padding: const EdgeInsets.all(8.0),
                           child: Column(
                             children: [
                               Text(
@@ -251,14 +256,19 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 style: TextStyle(
                                   color: Colors.red[700],
                                   fontWeight: FontWeight.w500,
+                                  fontSize: 12,
                                 ),
                               ),
-                              Text(
-                                '\$${transactionProvider.totalExpenses.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: Colors.red[700],
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(height: 2),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'R${NumberFormat('#,##0.00').format(transactionProvider.totalExpenses)}',
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
@@ -266,14 +276,14 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Card(
                         color: transactionProvider.balance >= 0
                             ? Colors.blue[50]
                             : Colors.orange[50],
                         child: Padding(
-                          padding: const EdgeInsets.all(12.0),
+                          padding: const EdgeInsets.all(8.0),
                           child: Column(
                             children: [
                               Text(
@@ -283,16 +293,21 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                       ? Colors.blue[700]
                                       : Colors.orange[700],
                                   fontWeight: FontWeight.w500,
+                                  fontSize: 12,
                                 ),
                               ),
-                              Text(
-                                '\$${transactionProvider.balance.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: transactionProvider.balance >= 0
-                                      ? Colors.blue[700]
-                                      : Colors.orange[700],
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(height: 2),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'R${NumberFormat('#,##0.00').format(transactionProvider.balance)}',
+                                  style: TextStyle(
+                                    color: transactionProvider.balance >= 0
+                                        ? Colors.blue[700]
+                                        : Colors.orange[700],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
@@ -436,7 +451,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    '${transaction.type == 'income' ? '+' : '-'}\$${transaction.amount.toStringAsFixed(2)}',
+                                    '${transaction.type == 'income' ? '+' : '-'}R${NumberFormat('#,##0.00').format(transaction.amount)}',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -461,11 +476,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 onSelected: (value) async {
                                   switch (value) {
                                     case 'edit':
-                                      final result = await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) => AddTransactionScreen(transaction: transaction),
-                                        ),
-                                      );
+                                      final result = await Navigator.of(context)
+                                          .push(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  AddTransactionScreen(
+                                                    transaction: transaction,
+                                                  ),
+                                            ),
+                                          );
                                       if (result == true) {
                                         transactionProvider.loadTransactions();
                                       }
@@ -490,9 +509,16 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                     value: 'delete',
                                     child: Row(
                                       children: [
-                                        Icon(Icons.delete, size: 20, color: Colors.red),
+                                        Icon(
+                                          Icons.delete,
+                                          size: 20,
+                                          color: Colors.red,
+                                        ),
                                         SizedBox(width: 8),
-                                        Text('Delete', style: TextStyle(color: Colors.red)),
+                                        Text(
+                                          'Delete',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
                                       ],
                                     ),
                                   ),

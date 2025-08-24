@@ -68,7 +68,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 60, height: 60),
+        title: const LogoWidget(width: 100, height: 100),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [

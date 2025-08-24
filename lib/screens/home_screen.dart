@@ -120,19 +120,30 @@ class DashboardTab extends StatelessWidget {
 
         // Clear data from providers
         if (context.mounted) {
-          await Provider.of<CategoryProvider>(context, listen: false).clearAllData();
-          await Provider.of<TransactionProvider>(context, listen: false).clearAllData();
-          await Provider.of<BudgetProvider>(context, listen: false).clearAllData();
+          await Provider.of<CategoryProvider>(
+            context,
+            listen: false,
+          ).clearAllData();
+          await Provider.of<TransactionProvider>(
+            context,
+            listen: false,
+          ).clearAllData();
+          await Provider.of<BudgetProvider>(
+            context,
+            listen: false,
+          ).clearAllData();
         }
 
         // Close loading dialog
         if (context.mounted) {
           Navigator.of(context).pop();
-          
+
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('All data cleared successfully! Default categories have been added.'),
+              content: Text(
+                'All data cleared successfully! Default categories have been added.',
+              ),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 3),
             ),
@@ -142,7 +153,7 @@ class DashboardTab extends StatelessWidget {
         // Close loading dialog if still open
         if (context.mounted) {
           Navigator.of(context).pop();
-          
+
           // Show error message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -159,10 +170,10 @@ class DashboardTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentMonth = DateFormat('MMMM yyyy').format(DateTime.now());
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 60, height: 60),
+        title: const LogoWidget(width: 100, height: 100),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
@@ -171,9 +182,18 @@ class DashboardTab extends StatelessWidget {
               switch (value) {
                 case 'refresh':
                   // Refresh all providers
-                  Provider.of<CategoryProvider>(context, listen: false).loadCategories();
-                  Provider.of<TransactionProvider>(context, listen: false).loadTransactions();
-                  Provider.of<BudgetProvider>(context, listen: false).loadBudgets();
+                  Provider.of<CategoryProvider>(
+                    context,
+                    listen: false,
+                  ).loadCategories();
+                  Provider.of<TransactionProvider>(
+                    context,
+                    listen: false,
+                  ).loadTransactions();
+                  Provider.of<BudgetProvider>(
+                    context,
+                    listen: false,
+                  ).loadBudgets();
                   break;
                 case 'clear_data':
                   await _clearAllData(context);
@@ -210,9 +230,11 @@ class DashboardTab extends StatelessWidget {
           // Calculate current month data
           final now = DateTime.now();
           final currentMonthIncome = transactionProvider.getMonthlyIncome(now);
-          final currentMonthExpenses = transactionProvider.getMonthlyExpenses(now);
+          final currentMonthExpenses = transactionProvider.getMonthlyExpenses(
+            now,
+          );
           final balance = currentMonthIncome - currentMonthExpenses;
-          final savingsPercentage = currentMonthIncome > 0 
+          final savingsPercentage = currentMonthIncome > 0
               ? ((balance / currentMonthIncome) * 100).round()
               : 0;
 
@@ -231,16 +253,14 @@ class DashboardTab extends StatelessWidget {
                       children: [
                         Text(
                           'Financial Overview',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           currentMonth,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: Colors.grey[600]),
                         ),
                       ],
                     ),
@@ -261,7 +281,7 @@ class DashboardTab extends StatelessWidget {
                             Expanded(
                               child: _buildFinancialCard(
                                 'Total Income',
-                                '\$${currentMonthIncome.toStringAsFixed(2)}',
+                                'R${NumberFormat('#,##0.00').format(currentMonthIncome)}',
                                 Icons.trending_up,
                                 Colors.green,
                               ),
@@ -270,7 +290,7 @@ class DashboardTab extends StatelessWidget {
                             Expanded(
                               child: _buildFinancialCard(
                                 'Total Expenses',
-                                '\$${currentMonthExpenses.toStringAsFixed(2)}',
+                                'R${NumberFormat('#,##0.00').format(currentMonthExpenses)}',
                                 Icons.trending_down,
                                 Colors.red,
                               ),
@@ -278,23 +298,28 @@ class DashboardTab extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Money Left Over - Main Focus
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: balance >= 0 
+                              colors: balance >= 0
                                   ? [Colors.blue.shade400, Colors.blue.shade600]
-                                  : [Colors.orange.shade400, Colors.orange.shade600],
+                                  : [
+                                      Colors.orange.shade400,
+                                      Colors.orange.shade600,
+                                    ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: (balance >= 0 ? Colors.blue : Colors.orange).withOpacity(0.3),
+                                color:
+                                    (balance >= 0 ? Colors.blue : Colors.orange)
+                                        .withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -303,7 +328,7 @@ class DashboardTab extends StatelessWidget {
                           child: Column(
                             children: [
                               Icon(
-                                balance >= 0 
+                                balance >= 0
                                     ? Icons.account_balance_wallet
                                     : Icons.warning,
                                 color: Colors.white,
@@ -311,7 +336,9 @@ class DashboardTab extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                balance >= 0 ? 'Money Left Over' : 'Over Budget',
+                                balance >= 0
+                                    ? 'Money Left Over'
+                                    : 'Over Budget',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -320,7 +347,7 @@ class DashboardTab extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '\$${balance.abs().toStringAsFixed(2)}',
+                                'R${NumberFormat('#,##0.00').format(balance.abs())}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 32,
@@ -329,13 +356,16 @@ class DashboardTab extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  balance >= 0 
+                                  balance >= 0
                                       ? '$savingsPercentage% of income saved'
                                       : '${savingsPercentage.abs()}% over budget',
                                   style: const TextStyle(
@@ -412,7 +442,11 @@ class DashboardTab extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 12),
-                _buildMonthlyBreakdown(currentMonthIncome, currentMonthExpenses, balance),
+                _buildMonthlyBreakdown(
+                  currentMonthIncome,
+                  currentMonthExpenses,
+                  balance,
+                ),
               ],
             ),
           );
@@ -430,9 +464,7 @@ class DashboardTab extends StatelessWidget {
   void _navigateToAddTransaction(BuildContext context, String type) {
     // Navigate to transactions tab and open add transaction screen
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const AddTransactionScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
     );
   }
 
@@ -544,26 +576,22 @@ class DashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildTopCategoriesList(TransactionProvider transactionProvider, CategoryProvider categoryProvider) {
+  Widget _buildTopCategoriesList(
+    TransactionProvider transactionProvider,
+    CategoryProvider categoryProvider,
+  ) {
     // Get category spending summary
     final categorySpending = transactionProvider.getCategoryExpenseSummary();
-    
+
     if (categorySpending.isEmpty) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             children: [
-              Icon(
-                Icons.category_outlined,
-                size: 48,
-                color: Colors.grey[400],
-              ),
+              Icon(Icons.category_outlined, size: 48, color: Colors.grey[400]),
               const SizedBox(height: 8),
-              const Text(
-                'No expenses yet',
-                style: TextStyle(fontSize: 16),
-              ),
+              const Text('No expenses yet', style: TextStyle(fontSize: 16)),
               const SizedBox(height: 4),
               const Text(
                 'Start adding transactions to see your top categories',
@@ -590,17 +618,17 @@ class DashboardTab extends StatelessWidget {
         itemBuilder: (context, index) {
           final entry = topCategories[index];
           final category = categoryProvider.getCategoryById(entry.key);
-          
+
           return ListTile(
             leading: CircleAvatar(
-              backgroundColor: category != null 
+              backgroundColor: category != null
                   ? _hexToColor(category.color ?? '#FF6B6B').withOpacity(0.1)
                   : Colors.grey.withOpacity(0.1),
               child: Icon(
-                category != null 
+                category != null
                     ? _getIconData(category.icon ?? 'category')
                     : Icons.category,
-                color: category != null 
+                color: category != null
                     ? _hexToColor(category.color ?? '#FF6B6B')
                     : Colors.grey,
                 size: 20,
@@ -608,7 +636,7 @@ class DashboardTab extends StatelessWidget {
             ),
             title: Text(category?.name ?? 'Unknown Category'),
             trailing: Text(
-              '\$${entry.value.toStringAsFixed(2)}',
+              'R${NumberFormat('#,##0.00').format(entry.value)}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.red,
@@ -620,10 +648,18 @@ class DashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthlyBreakdown(double income, double expenses, double balance) {
-    final progressValue = income > 0 ? (expenses / income).clamp(0.0, 1.0) : 0.0;
-    final savingsPercentage = income > 0 ? ((balance / income) * 100).round() : 0;
-    
+  Widget _buildMonthlyBreakdown(
+    double income,
+    double expenses,
+    double balance,
+  ) {
+    final progressValue = income > 0
+        ? (expenses / income).clamp(0.0, 1.0)
+        : 0.0;
+    final savingsPercentage = income > 0
+        ? ((balance / income) * 100).round()
+        : 0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -634,7 +670,7 @@ class DashboardTab extends StatelessWidget {
               children: [
                 const Text('Income vs Expenses'),
                 Text(
-                  balance >= 0 
+                  balance >= 0
                       ? '$savingsPercentage% saved'
                       : '${savingsPercentage.abs()}% over budget',
                   style: TextStyle(
@@ -657,20 +693,14 @@ class DashboardTab extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Spent: \$${expenses.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
+                  'Spent: R${NumberFormat('#,##0.00').format(expenses)}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 Text(
-                  balance >= 0 
-                      ? 'Remaining: \$${balance.toStringAsFixed(2)}'
-                      : 'Over: \$${balance.abs().toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
+                  balance >= 0
+                      ? 'Remaining: R${NumberFormat('#,##0.00').format(balance)}'
+                      : 'Over: R${NumberFormat('#,##0.00').format(balance.abs())}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
             ),

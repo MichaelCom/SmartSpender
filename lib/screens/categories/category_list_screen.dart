@@ -89,15 +89,20 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+      final categoryProvider = Provider.of<CategoryProvider>(
+        context,
+        listen: false,
+      );
       final success = await categoryProvider.deleteCategory(category.id!);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success 
-                ? 'Category deleted successfully' 
-                : categoryProvider.error ?? 'Failed to delete category'),
+            content: Text(
+              success
+                  ? 'Category deleted successfully'
+                  : categoryProvider.error ?? 'Failed to delete category',
+            ),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
@@ -109,7 +114,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 60, height: 60),
+        title: const LogoWidget(width: 100, height: 100),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
@@ -120,10 +125,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
               });
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'all',
-                child: Text('All Categories'),
-              ),
+              const PopupMenuItem(value: 'all', child: Text('All Categories')),
               const PopupMenuItem(
                 value: 'income',
                 child: Text('Income Categories'),
@@ -148,11 +150,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red[300],
-                  ),
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
                   const SizedBox(height: 16),
                   Text(
                     'Error: ${categoryProvider.error}',
@@ -169,7 +167,9 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
             );
           }
 
-          final filteredCategories = _getFilteredCategories(categoryProvider.categories);
+          final filteredCategories = _getFilteredCategories(
+            categoryProvider.categories,
+          );
 
           if (filteredCategories.isEmpty) {
             return Center(
@@ -183,7 +183,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _selectedFilter == 'all' 
+                    _selectedFilter == 'all'
                         ? 'No categories found'
                         : 'No ${_selectedFilter} categories found',
                     style: const TextStyle(fontSize: 18),
@@ -228,8 +228,8 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                     subtitle: Text(
                       category.type.toUpperCase(),
                       style: TextStyle(
-                        color: category.type == 'income' 
-                            ? Colors.green 
+                        color: category.type == 'income'
+                            ? Colors.green
                             : Colors.red,
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
@@ -241,7 +241,8 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                           case 'edit':
                             final result = await Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => AddCategoryScreen(category: category),
+                                builder: (context) =>
+                                    AddCategoryScreen(category: category),
                               ),
                             );
                             if (result == true) {
@@ -271,7 +272,10 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                             children: [
                               Icon(Icons.delete, size: 20, color: Colors.red),
                               SizedBox(width: 8),
-                              Text('Delete', style: TextStyle(color: Colors.red)),
+                              Text(
+                                'Delete',
+                                style: TextStyle(color: Colors.red),
+                              ),
                             ],
                           ),
                         ),
@@ -287,13 +291,14 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final result = await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const AddCategoryScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const AddCategoryScreen()),
           );
           if (result == true) {
             // Category was added, refresh the list
-            Provider.of<CategoryProvider>(context, listen: false).loadCategories();
+            Provider.of<CategoryProvider>(
+              context,
+              listen: false,
+            ).loadCategories();
           }
         },
         child: const Icon(Icons.add),

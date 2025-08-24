@@ -76,7 +76,9 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear All Data'),
-        content: const Text('This will delete all categories and transactions. Are you sure?'),
+        content: const Text(
+          'This will delete all categories and transactions. Are you sure?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -88,7 +90,9 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
               try {
                 await _dbHelper.clearAllCategories();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All data cleared successfully')),
+                  const SnackBar(
+                    content: Text('All data cleared successfully'),
+                  ),
                 );
                 _loadCategories();
               } catch (e) {
@@ -133,7 +137,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 60, height: 60),
+        title: const LogoWidget(width: 100, height: 100),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
@@ -530,10 +534,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
     );
   }
 
-  void _editCategoryAmount(
-    BuildContext context,
-    Category category,
-  ) {
+  void _editCategoryAmount(BuildContext context, Category category) {
     final TextEditingController amountController = TextEditingController();
     final currentAmount = _categoryAmounts[category.id] ?? 0.0;
     if (currentAmount > 0) {
@@ -556,10 +557,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                category.name,
-                style: const TextStyle(fontSize: 18),
-              ),
+              child: Text(category.name, style: const TextStyle(fontSize: 18)),
             ),
           ],
         ),
@@ -612,7 +610,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                   // Save transaction to database
                   final transaction = Transaction(
                     amount: amount,
-                    description: '${_showIncomeCategories ? 'Income' : 'Expense'} update',
+                    description:
+                        '${_showIncomeCategories ? 'Income' : 'Expense'} update',
                     categoryId: category.id!,
                     date: DateTime.now(),
                     type: _showIncomeCategories ? 'income' : 'expense',
@@ -647,10 +646,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
     );
   }
 
-  void _showDeleteConfirmation(
-    BuildContext context,
-    Category category,
-  ) {
+  void _showDeleteConfirmation(BuildContext context, Category category) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -676,9 +672,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      'All amounts removed from ${category.name}',
-                    ),
+                    content: Text('All amounts removed from ${category.name}'),
                   ),
                 );
 
