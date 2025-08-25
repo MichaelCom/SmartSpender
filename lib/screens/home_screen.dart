@@ -11,6 +11,7 @@ import '../providers/transaction_provider.dart';
 import '../providers/budget_provider.dart';
 import '../utils/database_utils.dart';
 import '../widgets/logo_widget.dart';
+import '../widgets/demo_data_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -243,6 +244,10 @@ class DashboardTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Demo Data Widget for Testing
+                const DemoDataWidget(),
+                const SizedBox(height: 16),
+
                 // Welcome Section
                 Card(
                   elevation: 2,
