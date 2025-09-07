@@ -12,6 +12,7 @@ import '../providers/budget_provider.dart';
 import '../utils/database_utils.dart';
 import '../widgets/logo_widget.dart';
 import '../widgets/demo_data_widget.dart';
+import '../debug_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -70,8 +71,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class DashboardTab extends StatelessWidget {
+class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
+
+  @override
+  State<DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends State<DashboardTab> {
+  @override
+  void initState() {
+    super.initState();
+    // Load data when dashboard is first created
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<TransactionProvider>(
+          context,
+          listen: false,
+        ).loadTransactions();
+        Provider.of<CategoryProvider>(context, listen: false).loadCategories();
+        Provider.of<BudgetProvider>(context, listen: false).loadBudgets();
+      }
+    });
+  }
 
   Future<void> _clearAllData(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -168,6 +190,17 @@ class DashboardTab extends StatelessWidget {
     }
   }
 
+  void _refreshData() {
+    if (mounted) {
+      Provider.of<TransactionProvider>(
+        context,
+        listen: false,
+      ).loadTransactions();
+      Provider.of<CategoryProvider>(context, listen: false).loadCategories();
+      Provider.of<BudgetProvider>(context, listen: false).loadBudgets();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentMonth = DateFormat('MMMM yyyy').format(DateTime.now());
@@ -182,19 +215,14 @@ class DashboardTab extends StatelessWidget {
             onSelected: (value) async {
               switch (value) {
                 case 'refresh':
-                  // Refresh all providers
-                  Provider.of<CategoryProvider>(
-                    context,
-                    listen: false,
-                  ).loadCategories();
-                  Provider.of<TransactionProvider>(
-                    context,
-                    listen: false,
-                  ).loadTransactions();
-                  Provider.of<BudgetProvider>(
-                    context,
-                    listen: false,
-                  ).loadBudgets();
+                  _refreshData();
+                  break;
+                case 'debug':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const DebugScreen(),
+                    ),
+                  );
                   break;
                 case 'clear_data':
                   await _clearAllData(context);
@@ -209,6 +237,16 @@ class DashboardTab extends StatelessWidget {
                     Icon(Icons.refresh, size: 20),
                     SizedBox(width: 8),
                     Text('Refresh Data'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'debug',
+                child: Row(
+                  children: [
+                    Icon(Icons.bug_report, size: 20),
+                    SizedBox(width: 8),
+                    Text('View Database'),
                   ],
                 ),
               ),
@@ -425,16 +463,27 @@ class DashboardTab extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Top Categories',
+                      'Top Expense Categories',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => const CategoryListScreen(),
                           ),
                         );
+                        // Refresh data when returning
+                        if (context.mounted) {
+                          Provider.of<CategoryProvider>(
+                            context,
+                            listen: false,
+                          ).loadCategories();
+                          Provider.of<TransactionProvider>(
+                            context,
+                            listen: false,
+                          ).loadTransactions();
+                        }
                       },
                       child: const Text('View All'),
                     ),
@@ -469,11 +518,21 @@ class DashboardTab extends StatelessWidget {
     );
   }
 
-  void _navigateToAddTransaction(BuildContext context, String type) {
+  void _navigateToAddTransaction(BuildContext context, String type) async {
     // Navigate to transactions tab and open add transaction screen
-    Navigator.of(context).push(
+    final result = await Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
     );
+
+    // Refresh data when returning from add transaction screen
+    if (result == true && context.mounted) {
+      Provider.of<TransactionProvider>(
+        context,
+        listen: false,
+      ).loadTransactions();
+      Provider.of<CategoryProvider>(context, listen: false).loadCategories();
+      Provider.of<BudgetProvider>(context, listen: false).loadBudgets();
+    }
   }
 
   Color _hexToColor(String hexString) {
