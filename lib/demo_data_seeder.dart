@@ -1,11 +1,10 @@
 import 'dart:math';
-import 'database/database_helper.dart';
+import 'database/hive_helper.dart';
 import 'models/category.dart';
 import 'models/transaction.dart';
 import 'models/budget.dart';
 
 class DemoDataSeeder {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   final Random _random = Random();
 
   // Demo categories with icons and colors
@@ -225,22 +224,22 @@ class DemoDataSeeder {
 
   Future<void> seedDemoData() async {
     print('🗑️ Clearing existing data...');
-    await _dbHelper.clearAllData();
+    await HiveHelper.clearAllData();
 
     print('📂 Creating categories...');
-    final categoryIds = await _createCategories();
+    final categoryKeys = await _createCategories();
 
     print('💰 Creating transactions...');
-    await _createTransactions(categoryIds);
+    await _createTransactions(categoryKeys);
 
     print('📊 Creating budgets...');
-    await _createBudgets(categoryIds);
+    await _createBudgets(categoryKeys);
 
     print('✅ Demo data seeding completed!');
   }
 
   Future<Map<String, List<int>>> _createCategories() async {
-    final Map<String, List<int>> categoryIds = {
+    final Map<String, List<int>> categoryKeys = {
       'expense': [],
       'income': [],
     };
@@ -254,8 +253,8 @@ class DemoDataSeeder {
         color: categoryData['color'],
         createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
       );
-      final id = await _dbHelper.insertCategory(category);
-      categoryIds['expense']!.add(id);
+      final key = await HiveHelper.insertCategory(category);
+      categoryKeys['expense']!.add(key);
     }
 
     // Create income categories
@@ -267,14 +266,14 @@ class DemoDataSeeder {
         color: categoryData['color'],
         createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
       );
-      final id = await _dbHelper.insertCategory(category);
-      categoryIds['income']!.add(id);
+      final key = await HiveHelper.insertCategory(category);
+      categoryKeys['income']!.add(key);
     }
 
-    return categoryIds;
+    return categoryKeys;
   }
 
-  Future<void> _createTransactions(Map<String, List<int>> categoryIds) async {
+  Future<void> _createTransactions(Map<String, List<int>> categoryKeys) async {
     final now = DateTime.now();
     final transactions = <Transaction>[];
 
@@ -286,14 +285,14 @@ class DemoDataSeeder {
       // Create income transactions (2-4 per month)
       final incomeCount = 2 + _random.nextInt(3);
       for (int i = 0; i < incomeCount; i++) {
-        final categoryId = categoryIds['income']![_random.nextInt(categoryIds['income']!.length)];
-        final category = await _dbHelper.getCategoryById(categoryId);
+        final categoryKey = categoryKeys['income']![_random.nextInt(categoryKeys['income']!.length)];
+        final category = HiveHelper.getCategory(categoryKey);
         final descriptions = _transactionDescriptions[category!.name] ?? ['Income'];
         
         final transaction = Transaction(
           amount: _generateIncomeAmount(category.name),
           description: descriptions[_random.nextInt(descriptions.length)],
-          categoryId: categoryId,
+          categoryKey: categoryKey,
           date: DateTime(monthDate.year, monthDate.month, 1 + _random.nextInt(daysInMonth)),
           type: 'income',
           createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(180))),
@@ -304,14 +303,14 @@ class DemoDataSeeder {
       // Create expense transactions (15-25 per month)
       final expenseCount = 15 + _random.nextInt(11);
       for (int i = 0; i < expenseCount; i++) {
-        final categoryId = categoryIds['expense']![_random.nextInt(categoryIds['expense']!.length)];
-        final category = await _dbHelper.getCategoryById(categoryId);
+        final categoryKey = categoryKeys['expense']![_random.nextInt(categoryKeys['expense']!.length)];
+        final category = HiveHelper.getCategory(categoryKey);
         final descriptions = _transactionDescriptions[category!.name] ?? ['Expense'];
         
         final transaction = Transaction(
           amount: _generateExpenseAmount(category.name),
           description: descriptions[_random.nextInt(descriptions.length)],
-          categoryId: categoryId,
+          categoryKey: categoryKey,
           date: DateTime(monthDate.year, monthDate.month, 1 + _random.nextInt(daysInMonth)),
           type: 'expense',
           createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(180))),
@@ -322,13 +321,13 @@ class DemoDataSeeder {
 
     // Insert all transactions
     for (final transaction in transactions) {
-      await _dbHelper.insertTransaction(transaction);
+      await HiveHelper.insertTransaction(transaction);
     }
 
     print('   Created ${transactions.length} transactions');
   }
 
-  Future<void> _createBudgets(Map<String, List<int>> categoryIds) async {
+  Future<void> _createBudgets(Map<String, List<int>> categoryKeys) async {
     final now = DateTime.now();
     final budgets = <Budget>[];
 
@@ -342,17 +341,17 @@ class DemoDataSeeder {
     ];
 
     for (final categoryName in majorCategories) {
-      // Find the category ID
-      final categories = await _dbHelper.getCategories(type: 'expense');
+      // Find the category key
+      final categories = HiveHelper.getCategoriesByType('expense');
       final category = categories.firstWhere((cat) => cat.name == categoryName);
       
-      if (category.id != null) {
+      if (category.key != null) {
         // Create budget for current month
         final startDate = DateTime(now.year, now.month, 1);
         final endDate = DateTime(now.year, now.month + 1, 0);
         
         final budget = Budget(
-          categoryId: category.id!,
+          categoryKey: category.key!,
           amount: _generateBudgetAmount(categoryName),
           period: 'monthly',
           startDate: startDate,
@@ -366,7 +365,7 @@ class DemoDataSeeder {
         final nextEndDate = DateTime(now.year, now.month + 2, 0);
         
         final nextBudget = Budget(
-          categoryId: category.id!,
+          categoryKey: category.key!,
           amount: _generateBudgetAmount(categoryName),
           period: 'monthly',
           startDate: nextStartDate,
@@ -379,7 +378,7 @@ class DemoDataSeeder {
 
     // Insert all budgets
     for (final budget in budgets) {
-      await _dbHelper.insertBudget(budget);
+      await HiveHelper.insertBudget(budget);
     }
 
     print('   Created ${budgets.length} budgets');
@@ -388,17 +387,17 @@ class DemoDataSeeder {
   double _generateIncomeAmount(String categoryName) {
     switch (categoryName) {
       case 'Salary':
-        return 3000.0 + _random.nextDouble() * 2000.0; // $3000-$5000
+        return 3000.0 + _random.nextDouble() * 2000.0; // R3000-R5000
       case 'Freelance':
-        return 500.0 + _random.nextDouble() * 1500.0; // $500-$2000
+        return 500.0 + _random.nextDouble() * 1500.0; // R500-R2000
       case 'Investment Returns':
-        return 100.0 + _random.nextDouble() * 500.0; // $100-$600
+        return 100.0 + _random.nextDouble() * 500.0; // R100-R600
       case 'Side Business':
-        return 200.0 + _random.nextDouble() * 800.0; // $200-$1000
+        return 200.0 + _random.nextDouble() * 800.0; // R200-R1000
       case 'Rental Income':
-        return 800.0 + _random.nextDouble() * 700.0; // $800-$1500
+        return 800.0 + _random.nextDouble() * 700.0; // R800-R1500
       case 'Bonus':
-        return 500.0 + _random.nextDouble() * 2000.0; // $500-$2500
+        return 500.0 + _random.nextDouble() * 2000.0; // R500-R2500
       default:
         return 100.0 + _random.nextDouble() * 500.0;
     }
@@ -407,29 +406,29 @@ class DemoDataSeeder {
   double _generateExpenseAmount(String categoryName) {
     switch (categoryName) {
       case 'Food & Dining':
-        return 5.0 + _random.nextDouble() * 95.0; // $5-$100
+        return 5.0 + _random.nextDouble() * 95.0; // R5-R100
       case 'Transportation':
-        return 10.0 + _random.nextDouble() * 140.0; // $10-$150
+        return 10.0 + _random.nextDouble() * 140.0; // R10-R150
       case 'Shopping':
-        return 15.0 + _random.nextDouble() * 285.0; // $15-$300
+        return 15.0 + _random.nextDouble() * 285.0; // R15-R300
       case 'Entertainment':
-        return 8.0 + _random.nextDouble() * 92.0; // $8-$100
+        return 8.0 + _random.nextDouble() * 92.0; // R8-R100
       case 'Bills & Utilities':
-        return 50.0 + _random.nextDouble() * 450.0; // $50-$500
+        return 50.0 + _random.nextDouble() * 450.0; // R50-R500
       case 'Healthcare':
-        return 20.0 + _random.nextDouble() * 280.0; // $20-$300
+        return 20.0 + _random.nextDouble() * 280.0; // R20-R300
       case 'Education':
-        return 25.0 + _random.nextDouble() * 475.0; // $25-$500
+        return 25.0 + _random.nextDouble() * 475.0; // R25-R500
       case 'Travel':
-        return 100.0 + _random.nextDouble() * 900.0; // $100-$1000
+        return 100.0 + _random.nextDouble() * 900.0; // R100-R1000
       case 'Fitness & Sports':
-        return 15.0 + _random.nextDouble() * 135.0; // $15-$150
+        return 15.0 + _random.nextDouble() * 135.0; // R15-R150
       case 'Home & Garden':
-        return 30.0 + _random.nextDouble() * 270.0; // $30-$300
+        return 30.0 + _random.nextDouble() * 270.0; // R30-R300
       case 'Personal Care':
-        return 10.0 + _random.nextDouble() * 140.0; // $10-$150
+        return 10.0 + _random.nextDouble() * 140.0; // R10-R150
       case 'Gifts & Donations':
-        return 20.0 + _random.nextDouble() * 180.0; // $20-$200
+        return 20.0 + _random.nextDouble() * 180.0; // R20-R200
       default:
         return 10.0 + _random.nextDouble() * 90.0;
     }
@@ -438,15 +437,15 @@ class DemoDataSeeder {
   double _generateBudgetAmount(String categoryName) {
     switch (categoryName) {
       case 'Food & Dining':
-        return 400.0 + _random.nextDouble() * 200.0; // $400-$600
+        return 400.0 + _random.nextDouble() * 200.0; // R400-R600
       case 'Transportation':
-        return 200.0 + _random.nextDouble() * 300.0; // $200-$500
+        return 200.0 + _random.nextDouble() * 300.0; // R200-R500
       case 'Shopping':
-        return 300.0 + _random.nextDouble() * 200.0; // $300-$500
+        return 300.0 + _random.nextDouble() * 200.0; // R300-R500
       case 'Entertainment':
-        return 150.0 + _random.nextDouble() * 150.0; // $150-$300
+        return 150.0 + _random.nextDouble() * 150.0; // R150-R300
       case 'Bills & Utilities':
-        return 500.0 + _random.nextDouble() * 300.0; // $500-$800
+        return 500.0 + _random.nextDouble() * 300.0; // R500-R800
       default:
         return 200.0 + _random.nextDouble() * 300.0;
     }

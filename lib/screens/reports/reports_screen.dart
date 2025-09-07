@@ -275,8 +275,34 @@ class _ReportsScreenState extends State<ReportsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Income vs Expenses Trend',
+                        'Income vs Expenses Trend (Last 6 Months)',
                         style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Income'),
+                          const SizedBox(width: 24),
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Expenses'),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -295,13 +321,11 @@ class _ReportsScreenState extends State<ReportsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Coming Soon',
+                        'Trend Insights',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '• Monthly comparison charts\n• Spending velocity\n• Seasonal patterns',
-                      ),
+                      const SizedBox(height: 16),
+                      ..._buildTrendInsights(transactionProvider),
                     ],
                   ),
                 ),
@@ -577,24 +601,176 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildTrendChart(TransactionProvider transactionProvider) {
-    // Simplified chart - in a real implementation, you'd build actual chart data
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.show_chart, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('Trend Chart'),
-            Text('Coming Soon', style: TextStyle(color: Colors.grey)),
-          ],
+    final monthlyData = _getMonthlyTrendData(transactionProvider);
+    
+    if (monthlyData.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
         ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.show_chart, size: 48, color: Colors.grey),
+              SizedBox(height: 8),
+              Text('No data available'),
+              Text('Add transactions to see trends', style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(show: true, drawVerticalLine: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 60,
+              getTitlesWidget: (value, meta) {
+                return Text('R${(value / 1000).toStringAsFixed(0)}k',
+                    style: const TextStyle(fontSize: 10));
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                final index = value.toInt();
+                return Text(
+                  index < months.length ? months[index] : '',
+                  style: const TextStyle(fontSize: 10),
+                );
+              },
+            ),
+          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: monthlyData.asMap().entries.map((e) => 
+                FlSpot(e.key.toDouble(), e.value['income']!)).toList(),
+            isCurved: true,
+            color: Colors.green,
+            barWidth: 3,
+            dotData: const FlDotData(show: true),
+          ),
+          LineChartBarData(
+            spots: monthlyData.asMap().entries.map((e) => 
+                FlSpot(e.key.toDouble(), e.value['expense']!)).toList(),
+            isCurved: true,
+            color: Colors.red,
+            barWidth: 3,
+            dotData: const FlDotData(show: true),
+          ),
+        ],
       ),
     );
+  }
+
+  List<Map<String, double>> _getMonthlyTrendData(TransactionProvider transactionProvider) {
+    final now = DateTime.now();
+    final monthlyData = <Map<String, double>>[];
+    
+    for (int i = 5; i >= 0; i--) {
+      final month = DateTime(now.year, now.month - i, 1);
+      final nextMonth = DateTime(now.year, now.month - i + 1, 1);
+      
+      final monthTransactions = transactionProvider.transactions.where((t) =>
+          t.date.isAfter(month.subtract(const Duration(days: 1))) &&
+          t.date.isBefore(nextMonth)).toList();
+      
+      final income = monthTransactions
+          .where((t) => t.type == 'income')
+          .fold(0.0, (sum, t) => sum + t.amount);
+      
+      final expense = monthTransactions
+          .where((t) => t.type == 'expense')
+          .fold(0.0, (sum, t) => sum + t.amount);
+      
+      monthlyData.add({'income': income, 'expense': expense});
+    }
+    
+    return monthlyData;
+  }
+
+  List<Widget> _buildTrendInsights(TransactionProvider transactionProvider) {
+    final monthlyData = _getMonthlyTrendData(transactionProvider);
+    
+    if (monthlyData.length < 2) {
+      return [
+        const Text('Need more data to show insights'),
+        const Text('Add transactions from multiple months', 
+            style: TextStyle(color: Colors.grey)),
+      ];
+    }
+
+    final insights = <Widget>[];
+    
+    // Calculate average monthly income/expense
+    final avgIncome = monthlyData.map((m) => m['income']!).reduce((a, b) => a + b) / monthlyData.length;
+    final avgExpense = monthlyData.map((m) => m['expense']!).reduce((a, b) => a + b) / monthlyData.length;
+    
+    // Net savings trend
+    final netSavings = avgIncome - avgExpense;
+    final savingsColor = netSavings >= 0 ? Colors.green : Colors.red;
+    final savingsIcon = netSavings >= 0 ? Icons.trending_up : Icons.trending_down;
+    
+    insights.add(
+      Row(
+        children: [
+          Icon(savingsIcon, color: savingsColor, size: 20),
+          const SizedBox(width: 8),
+          Text('Average monthly ${netSavings >= 0 ? 'savings' : 'deficit'}: '),
+          Text(
+            'R${netSavings.abs().toStringAsFixed(0)}',
+            style: TextStyle(fontWeight: FontWeight.bold, color: savingsColor),
+          ),
+        ],
+      ),
+    );
+    
+    // Spending trend
+    if (monthlyData.length >= 3) {
+      final recentExpense = (monthlyData.last['expense']! + monthlyData[monthlyData.length - 2]['expense']!) / 2;
+      final olderExpense = (monthlyData.first['expense']! + monthlyData[1]['expense']!) / 2;
+      final expenseChange = ((recentExpense - olderExpense) / olderExpense * 100);
+      
+      if (expenseChange.abs() > 5) {
+        insights.add(const SizedBox(height: 8));
+        insights.add(
+          Row(
+            children: [
+              Icon(
+                expenseChange > 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                color: expenseChange > 0 ? Colors.red : Colors.green,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text('Spending ${expenseChange > 0 ? 'increased' : 'decreased'} by '),
+              Text(
+                '${expenseChange.abs().toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: expenseChange > 0 ? Colors.red : Colors.green,
+                ),
+              ),
+              const Text(' recently'),
+            ],
+          ),
+        );
+      }
+    }
+    
+    return insights.isEmpty ? [const Text('No significant trends detected')] : insights;
   }
 
   Widget _buildCategoryPieChart(

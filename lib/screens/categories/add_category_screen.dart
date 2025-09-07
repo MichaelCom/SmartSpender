@@ -87,7 +87,6 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
     final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
     
     final category = model.Category(
-      id: widget.category?.id,
       name: _nameController.text.trim(),
       type: _selectedType,
       color: _selectedColor,

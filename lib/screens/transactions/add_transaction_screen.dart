@@ -23,7 +23,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _descriptionController = TextEditingController();
 
   String _selectedType = 'expense';
-  int? _selectedCategoryId;
+  int? _selectedCategoryKey;
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
 
@@ -35,7 +35,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _amountController.text = widget.transaction!.amount.toString();
       _descriptionController.text = widget.transaction!.description ?? '';
       _selectedType = widget.transaction!.type;
-      _selectedCategoryId = widget.transaction!.categoryId;
+      _selectedCategoryKey = widget.transaction!.categoryKey;
       _selectedDate = widget.transaction!.date;
     }
   }
@@ -97,7 +97,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Future<void> _saveTransaction() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedCategoryId == null) {
+    if (_selectedCategoryKey == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a category'),
@@ -117,12 +117,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
 
     final transaction = model.Transaction(
-      id: widget.transaction?.id,
       amount: double.parse(_amountController.text),
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
-      categoryId: _selectedCategoryId!,
+      categoryKey: _selectedCategoryKey!,
       date: _selectedDate,
       type: _selectedType,
       createdAt: widget.transaction?.createdAt ?? DateTime.now(),
@@ -212,7 +211,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     onChanged: (value) {
                       setState(() {
                         _selectedType = value!;
-                        _selectedCategoryId = null; // Reset category selection
+                        _selectedCategoryKey = null; // Reset category selection
                       });
                     },
                   ),
@@ -225,7 +224,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     onChanged: (value) {
                       setState(() {
                         _selectedType = value!;
-                        _selectedCategoryId = null; // Reset category selection
+                        _selectedCategoryKey = null; // Reset category selection
                       });
                     },
                   ),
@@ -312,7 +311,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       )
                     else
                       ...categories.map((category) {
-                        final isSelected = _selectedCategoryId == category.id;
+                        final isSelected = _selectedCategoryKey == category.key;
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
@@ -343,7 +342,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                 : null,
                             onTap: () {
                               setState(() {
-                                _selectedCategoryId = category.id;
+                                _selectedCategoryKey = category.key;
                               });
                             },
                           ),
@@ -386,11 +385,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(height: 32),
 
             // Preview
-            if (_selectedCategoryId != null)
+            if (_selectedCategoryKey != null)
               Consumer<CategoryProvider>(
                 builder: (context, categoryProvider, child) {
-                  final category = categoryProvider.getCategoryById(
-                    _selectedCategoryId!,
+                  final category = categoryProvider.getCategoryByKey(
+                    _selectedCategoryKey!,
                   );
                   if (category == null) return const SizedBox.shrink();
 
@@ -462,7 +461,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    '${_selectedType == 'income' ? '+' : '-'}\$${_amountController.text.isEmpty ? '0.00' : _amountController.text}',
+                                    '${_selectedType == 'income' ? '+' : '-'}R${_amountController.text.isEmpty ? '0.00' : _amountController.text}',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,

@@ -93,7 +93,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
         context,
         listen: false,
       );
-      final success = await categoryProvider.deleteCategory(category.id!);
+      final success = await categoryProvider.deleteCategory(category.key!);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

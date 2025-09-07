@@ -1,22 +1,36 @@
-class Transaction {
-  final int? id;
-  final double amount;
-  final String? description;
-  final int categoryId;
-  final DateTime date;
-  final String type; // 'income' or 'expense'
-  final DateTime createdAt;
+import 'package:hive/hive.dart';
 
-  // Optional fields from joined queries
-  final String? categoryName;
-  final String? categoryIcon;
-  final String? categoryColor;
+part 'transaction.g.dart';
+
+@HiveType(typeId: 1)
+class Transaction extends HiveObject {
+  @HiveField(0)
+  double amount;
+
+  @HiveField(1)
+  String? description;
+
+  @HiveField(2)
+  int categoryKey; // Reference to Category's Hive key
+
+  @HiveField(3)
+  DateTime date;
+
+  @HiveField(4)
+  String type; // 'income' or 'expense'
+
+  @HiveField(5)
+  DateTime createdAt;
+
+  // Optional fields from joined queries (not stored in Hive)
+  String? categoryName;
+  String? categoryIcon;
+  String? categoryColor;
 
   Transaction({
-    this.id,
     required this.amount,
     this.description,
-    required this.categoryId,
+    required this.categoryKey,
     required this.date,
     required this.type,
     required this.createdAt,
@@ -25,26 +39,25 @@ class Transaction {
     this.categoryColor,
   });
 
-  // Convert Transaction to Map for database operations
+  // Convert Transaction to Map for compatibility
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'key': key, // Hive's auto-generated key
       'amount': amount,
       'description': description,
-      'category_id': categoryId,
+      'category_id': categoryKey,
       'date': date.toIso8601String().split('T')[0], // Store as YYYY-MM-DD
       'type': type,
       'created_at': createdAt.toIso8601String(),
     };
   }
 
-  // Create Transaction from Map (database result)
+  // Create Transaction from Map (for migration purposes)
   factory Transaction.fromMap(Map<String, dynamic> map) {
     return Transaction(
-      id: map['id']?.toInt(),
       amount: (map['amount'] as num).toDouble(),
       description: map['description'],
-      categoryId: map['category_id']?.toInt() ?? 0,
+      categoryKey: map['category_id']?.toInt() ?? 0,
       date: DateTime.parse(map['date']),
       type: map['type'] ?? '',
       createdAt: DateTime.parse(map['created_at']),
@@ -56,10 +69,9 @@ class Transaction {
 
   // Create a copy of Transaction with updated fields
   Transaction copyWith({
-    int? id,
     double? amount,
     String? description,
-    int? categoryId,
+    int? categoryKey,
     DateTime? date,
     String? type,
     DateTime? createdAt,
@@ -68,10 +80,9 @@ class Transaction {
     String? categoryColor,
   }) {
     return Transaction(
-      id: id ?? this.id,
       amount: amount ?? this.amount,
       description: description ?? this.description,
-      categoryId: categoryId ?? this.categoryId,
+      categoryKey: categoryKey ?? this.categoryKey,
       date: date ?? this.date,
       type: type ?? this.type,
       createdAt: createdAt ?? this.createdAt,
@@ -83,17 +94,17 @@ class Transaction {
 
   @override
   String toString() {
-    return 'Transaction{id: $id, amount: $amount, description: $description, categoryId: $categoryId, date: $date, type: $type, createdAt: $createdAt}';
+    return 'Transaction{key: $key, amount: $amount, description: $description, categoryKey: $categoryKey, date: $date, type: $type, createdAt: $createdAt}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is Transaction &&
-        other.id == id &&
+        other.key == key &&
         other.amount == amount &&
         other.description == description &&
-        other.categoryId == categoryId &&
+        other.categoryKey == categoryKey &&
         other.date == date &&
         other.type == type &&
         other.createdAt == createdAt;
@@ -101,10 +112,10 @@ class Transaction {
 
   @override
   int get hashCode {
-    return id.hashCode ^
+    return key.hashCode ^
         amount.hashCode ^
         description.hashCode ^
-        categoryId.hashCode ^
+        categoryKey.hashCode ^
         date.hashCode ^
         type.hashCode ^
         createdAt.hashCode;
@@ -120,6 +131,12 @@ class Transaction {
   
   String get displayAmount {
     final prefix = isIncome ? '+' : '-';
-    return '$prefix\$${formattedAmount}';
+    return '${prefix}R${formattedAmount}';
   }
+
+  // Get the ID (Hive key) for compatibility
+  int? get id => key;
+  
+  // Get categoryId for compatibility
+  int get categoryId => categoryKey;
 }

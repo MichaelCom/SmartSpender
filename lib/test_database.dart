@@ -1,4 +1,4 @@
-import 'package:smart_spender/database/database_helper.dart';
+import 'package:smart_spender/database/hive_helper.dart';
 import 'package:smart_spender/models/category.dart';
 import 'package:smart_spender/models/transaction.dart';
 import 'package:smart_spender/models/budget.dart';
@@ -8,11 +8,12 @@ Future<void> testDatabase() async {
   print('🚀 Testing SmartSpender Database...');
 
   try {
-    final dbHelper = DatabaseHelper();
+    // Initialize Hive first
+    await HiveHelper.initHive();
 
     // Test 1: Get categories
     print('\n📂 Testing Categories...');
-    final categories = await dbHelper.getCategories();
+    final categories = HiveHelper.getAllCategories();
     print('✅ Found ${categories.length} categories');
 
     // Print first few categories
@@ -23,11 +24,11 @@ Future<void> testDatabase() async {
 
     // Test 2: Get transactions
     print('\n💰 Testing Transactions...');
-    final transactions = await dbHelper.getTransactions(limit: 5);
-    print('✅ Found ${transactions.length} recent transactions');
+    final allTransactions = HiveHelper.getAllTransactions();
+    final transactions = allTransactions.take(5).toList();
+    print('✅ Found ${transactions.length} recent transactions (of ${allTransactions.length} total)');
 
-    for (
-      int i = 0;
+    for (int i = 0;
       i < (transactions.length > 3 ? 3 : transactions.length);
       i++
     ) {
@@ -39,54 +40,51 @@ Future<void> testDatabase() async {
 
     // Test 3: Get budgets
     print('\n📊 Testing Budgets...');
-    final budgets = await dbHelper.getBudgets();
+    final budgets = HiveHelper.getAllBudgets();
     print('✅ Found ${budgets.length} budgets');
 
     for (int i = 0; i < (budgets.length > 3 ? 3 : budgets.length); i++) {
       final budget = budgets[i];
-      final category = await dbHelper.getCategoryById(budget.categoryId);
+      final category = HiveHelper.getCategory(budget.categoryKey);
       print(
-        '   - ${category?.name}: \$${budget.amount.toStringAsFixed(2)} (${budget.period})',
+        '   - ${category?.name}: R${budget.amount.toStringAsFixed(2)} (${budget.period})',
       );
     }
 
     // Test 4: Analytics
     print('\n📈 Testing Analytics...');
-    final currentMonth = DateTime.now().toIso8601String().substring(
-      0,
-      7,
-    ); // YYYY-MM
-    final monthlyTotals = await dbHelper.getMonthlyTotals(currentMonth);
-    print('✅ Monthly totals for $currentMonth:');
-    print(
-      '   - Income: \$${monthlyTotals['income']?.toStringAsFixed(2) ?? '0.00'}',
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0);
+    
+    final monthlyIncome = HiveHelper.getTotalIncome(
+      startDate: startOfMonth,
+      endDate: endOfMonth,
     );
-    print(
-      '   - Expense: \$${monthlyTotals['expense']?.toStringAsFixed(2) ?? '0.00'}',
+    final monthlyExpenses = HiveHelper.getTotalExpenses(
+      startDate: startOfMonth,
+      endDate: endOfMonth,
     );
-    print(
-      '   - Balance: \$${monthlyTotals['balance']?.toStringAsFixed(2) ?? '0.00'}',
-    );
+    final balance = monthlyIncome - monthlyExpenses;
+    
+    print('✅ Monthly totals for ${now.toIso8601String().substring(0, 7)}:');
+    print('   - Income: R${monthlyIncome.toStringAsFixed(2)}');
+    print('   - Expense: R${monthlyExpenses.toStringAsFixed(2)}');
+    print('   - Balance: R${balance.toStringAsFixed(2)}');
 
     // Test 5: Category totals
-    final categoryTotals = await dbHelper.getCategoryTotals(
-      startDate: DateTime(
-        DateTime.now().year,
-        DateTime.now().month,
-        1,
-      ).toIso8601String().split('T')[0],
-      type: 'expense',
+    final categoryTotals = HiveHelper.getExpensesByCategory(
+      startDate: startOfMonth,
+      endDate: endOfMonth,
     );
     print('\n📊 Top expense categories this month:');
-    for (
-      int i = 0;
-      i < (categoryTotals.length > 3 ? 3 : categoryTotals.length);
-      i++
-    ) {
-      final categoryTotal = categoryTotals[i];
-      print(
-        '   - ${categoryTotal['name']}: \$${(categoryTotal['total'] as num).toStringAsFixed(2)}',
-      );
+    
+    final sortedCategories = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    for (int i = 0; i < (sortedCategories.length > 3 ? 3 : sortedCategories.length); i++) {
+      final entry = sortedCategories[i];
+      print('   - ${entry.key}: R${entry.value.toStringAsFixed(2)}');
     }
 
     print('\n🎉 Database test completed successfully!');

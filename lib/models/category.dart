@@ -1,13 +1,25 @@
-class Category {
-  final int? id;
-  final String name;
-  final String type; // 'income' or 'expense'
-  final String? color;
-  final String? icon;
-  final DateTime createdAt;
+import 'package:hive/hive.dart';
+
+part 'category.g.dart';
+
+@HiveType(typeId: 0)
+class Category extends HiveObject {
+  @HiveField(0)
+  String name;
+
+  @HiveField(1)
+  String type; // 'income' or 'expense'
+
+  @HiveField(2)
+  String? color;
+
+  @HiveField(3)
+  String? icon;
+
+  @HiveField(4)
+  DateTime createdAt;
 
   Category({
-    this.id,
     required this.name,
     required this.type,
     this.color,
@@ -15,10 +27,10 @@ class Category {
     required this.createdAt,
   });
 
-  // Convert Category to Map for database operations
+  // Convert Category to Map for compatibility (if needed)
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'key': key, // Hive's auto-generated key
       'name': name,
       'type': type,
       'color': color,
@@ -27,10 +39,9 @@ class Category {
     };
   }
 
-  // Create Category from Map (database result)
+  // Create Category from Map (for migration purposes)
   factory Category.fromMap(Map<String, dynamic> map) {
     return Category(
-      id: map['id']?.toInt(),
       name: map['name'] ?? '',
       type: map['type'] ?? '',
       color: map['color'],
@@ -41,7 +52,6 @@ class Category {
 
   // Create a copy of Category with updated fields
   Category copyWith({
-    int? id,
     String? name,
     String? type,
     String? color,
@@ -49,7 +59,6 @@ class Category {
     DateTime? createdAt,
   }) {
     return Category(
-      id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
       color: color ?? this.color,
@@ -60,14 +69,14 @@ class Category {
 
   @override
   String toString() {
-    return 'Category{id: $id, name: $name, type: $type, color: $color, icon: $icon, createdAt: $createdAt}';
+    return 'Category{key: $key, name: $name, type: $type, color: $color, icon: $icon, createdAt: $createdAt}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is Category &&
-        other.id == id &&
+        other.key == key &&
         other.name == name &&
         other.type == type &&
         other.color == color &&
@@ -77,7 +86,7 @@ class Category {
 
   @override
   int get hashCode {
-    return id.hashCode ^
+    return key.hashCode ^
         name.hashCode ^
         type.hashCode ^
         color.hashCode ^
@@ -88,4 +97,7 @@ class Category {
   // Helper methods
   bool get isIncome => type == 'income';
   bool get isExpense => type == 'expense';
+  
+  // Get the ID (Hive key) for compatibility
+  int? get id => key;
 }

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../database/database_helper.dart';
+import 'package:provider/provider.dart';
+import '../../providers/category_provider.dart';
+import '../../providers/budget_provider.dart';
 import '../../models/category.dart';
-import '../../models/transaction.dart';
+import '../../models/budget.dart';
 
 class AddBudgetScreen extends StatefulWidget {
-  final Map<String, dynamic>? budget;
+  final Budget? budget;
   final bool isIncomeCategory;
   
   const AddBudgetScreen({
@@ -21,8 +23,13 @@ class AddBudgetScreen extends StatefulWidget {
 class _AddBudgetScreenState extends State<AddBudgetScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
-  final _categoryController = TextEditingController();
   final _descriptionController = TextEditingController();
+
+  Category? _selectedCategory;
+  String _selectedPeriod = 'monthly';
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 30));
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -30,37 +37,171 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     if (widget.budget != null) {
       _loadExistingData();
     }
+    _updateEndDate();
   }
 
   void _loadExistingData() {
     final budget = widget.budget!;
-    _amountController.text = (budget['amount'] as double).toStringAsFixed(2);
-    _categoryController.text = budget['category'] as String;
-    _descriptionController.text = budget['description'] ?? '';
+    _amountController.text = budget.amount.toStringAsFixed(2);
+    _selectedPeriod = budget.period;
+    _startDate = budget.startDate;
+    _endDate = budget.endDate;
+    _descriptionController.text = budget.description ?? '';
+    
+    // Load the category
+    final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+    _selectedCategory = categoryProvider.getCategoryByKey(budget.categoryKey);
+  }
+
+  void _updateEndDate() {
+    switch (_selectedPeriod) {
+      case 'weekly':
+        _endDate = _startDate.add(const Duration(days: 7));
+        break;
+      case 'monthly':
+        _endDate = DateTime(_startDate.year, _startDate.month + 1, _startDate.day)
+            .subtract(const Duration(days: 1));
+        break;
+      case 'yearly':
+        _endDate = DateTime(_startDate.year + 1, _startDate.month, _startDate.day)
+            .subtract(const Duration(days: 1));
+        break;
+    }
   }
 
   @override
   void dispose() {
     _amountController.dispose();
-    _categoryController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveEntry() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    if (_selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a category'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+      final amount = double.parse(_amountController.text);
+      final description = _descriptionController.text.trim();
+      
+      // Check for conflicting budgets
+      final hasConflict = budgetProvider.hasConflictingBudget(
+        _selectedCategory!.key!,
+        _startDate,
+        _endDate,
+        excludeBudgetKey: widget.budget?.key,
+      );
+      
+      if (hasConflict) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A budget already exists for this category in the selected period'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      bool success;
+      if (widget.budget == null) {
+        // Creating new budget
+        final budget = Budget(
+          categoryKey: _selectedCategory!.key!,
+          amount: amount,
+          period: _selectedPeriod,
+          startDate: _startDate,
+          endDate: _endDate,
+          description: description.isEmpty ? null : description,
+          createdAt: DateTime.now(),
+        );
+        success = await budgetProvider.addBudget(budget);
+      } else {
+        // Updating existing budget
+        final updatedBudget = widget.budget!.copyWith(
+          categoryKey: _selectedCategory!.key!,
+          amount: amount,
+          period: _selectedPeriod,
+          startDate: _startDate,
+          endDate: _endDate,
+          description: description.isEmpty ? null : description,
+        );
+        success = await budgetProvider.updateBudget(updatedBudget);
+      }
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Budget ${widget.budget == null ? 'created' : 'updated'} successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              budgetProvider.error ?? 'Failed to ${widget.budget == null ? 'create' : 'update'} budget',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.budget != null;
-    final title = widget.isIncomeCategory ? 'Income' : 'Expense';
     
     return Scaffold(
       appBar: AppBar(
-        title: Text('${isEditing ? 'Edit' : 'Add'} $title'),
+        title: Text('${isEditing ? 'Edit' : 'Add'} Budget'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          TextButton(
-            onPressed: _saveEntry,
-            child: Text(isEditing ? 'Update' : 'Save'),
-          ),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _saveEntry,
+              child: Text(isEditing ? 'Update' : 'Save'),
+            ),
         ],
       ),
       body: Form(
@@ -72,14 +213,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             children: [
               // Header Card
               Card(
-                color: (widget.isIncomeCategory ? Colors.green : Colors.red).withOpacity(0.1),
+                color: Colors.blue.withOpacity(0.1),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      Icon(
-                        widget.isIncomeCategory ? Icons.trending_up : Icons.trending_down,
-                        color: widget.isIncomeCategory ? Colors.green : Colors.red,
+                      const Icon(
+                        Icons.account_balance_wallet,
+                        color: Colors.blue,
                         size: 32,
                       ),
                       const SizedBox(width: 12),
@@ -87,18 +228,16 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '${isEditing ? 'Edit' : 'Add'} $title',
+                            const Text(
+                              'Create Budget',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: widget.isIncomeCategory ? Colors.green : Colors.red,
+                                color: Colors.blue,
                               ),
                             ),
                             Text(
-                              widget.isIncomeCategory 
-                                  ? 'Track money coming in'
-                                  : 'Track money going out',
+                              'Set spending limits for categories',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                           ],
@@ -110,7 +249,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Category Name Input
+              // Category Selection
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -118,27 +257,47 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Category Name',
+                        'Category',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _categoryController,
-                        decoration: InputDecoration(
-                          hintText: widget.isIncomeCategory 
-                              ? 'e.g., Salary, Freelance, Business...'
-                              : 'e.g., Groceries, Rent, Insurance...',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: Icon(
-                            widget.isIncomeCategory ? Icons.trending_up : Icons.trending_down,
-                            color: widget.isIncomeCategory ? Colors.green : Colors.red,
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a category name';
-                          }
-                          return null;
+                      Consumer<CategoryProvider>(
+                        builder: (context, categoryProvider, child) {
+                          final categories = widget.isIncomeCategory 
+                              ? categoryProvider.incomeCategories
+                              : categoryProvider.expenseCategories;
+                          
+                          return DropdownButtonFormField<Category>(
+                            value: _selectedCategory,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.category),
+                            ),
+                            hint: const Text('Select a category'),
+                            items: categories.map((category) {
+                              return DropdownMenuItem<Category>(
+                                value: category,
+                                child: Row(
+                                  children: [
+                                    Text(category.icon ?? '📁'),
+                                    const SizedBox(width: 8),
+                                    Text(category.name),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (Category? value) {
+                              setState(() {
+                                _selectedCategory = value;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null) {
+                                return 'Please select a category';
+                              }
+                              return null;
+                            },
+                          );
                         },
                       ),
                     ],
@@ -155,37 +314,132 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.isIncomeCategory ? 'Income Amount' : 'Expense Amount',
+                        'Budget Amount',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _amountController,
+                        decoration: const InputDecoration(
+                          hintText: '0.00',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.attach_money),
+                          prefixText: 'R',
+                        ),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                         ],
-                        decoration: InputDecoration(
-                          prefixText: 'R ',
-                          hintText: '0.00',
-                          border: const OutlineInputBorder(),
-                          helperText: widget.isIncomeCategory 
-                              ? 'How much did you earn?'
-                              : 'How much did you spend?',
-                        ),
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
+                          if (value == null || value.trim().isEmpty) {
                             return 'Please enter an amount';
                           }
-                          if (double.tryParse(value) == null) {
+                          final amount = double.tryParse(value);
+                          if (amount == null || amount <= 0) {
                             return 'Please enter a valid amount';
-                          }
-                          if (double.parse(value) <= 0) {
-                            return 'Amount must be greater than 0';
                           }
                           return null;
                         },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Period Selection
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Budget Period',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _selectedPeriod,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.schedule),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                          DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                          DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                        ],
+                        onChanged: (String? value) {
+                          setState(() {
+                            _selectedPeriod = value!;
+                            _updateEndDate();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Date Range
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Budget Period',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final date = await showDatePicker(
+                                  context: context,
+                                  initialDate: _startDate,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2030),
+                                );
+                                if (date != null) {
+                                  setState(() {
+                                    _startDate = date;
+                                    _updateEndDate();
+                                  });
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  labelText: 'Start Date',
+                                  prefixIcon: Icon(Icons.calendar_today),
+                                ),
+                                child: Text(
+                                  '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'End Date',
+                                prefixIcon: Icon(Icons.event),
+                              ),
+                              child: Text(
+                                '${_endDate.day}/${_endDate.month}/${_endDate.year}',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -207,71 +461,42 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _descriptionController,
-                        decoration: InputDecoration(
-                          hintText: widget.isIncomeCategory 
-                              ? 'e.g., Monthly salary, bonus payment...'
-                              : 'e.g., Weekly groceries, car payment...',
-                          border: const OutlineInputBorder(),
+                        decoration: const InputDecoration(
+                          hintText: 'Add a note about this budget...',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.note),
                         ),
-                        maxLines: 2,
+                        maxLines: 3,
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Tips Card
-              Card(
-                color: Colors.blue.withOpacity(0.1),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.lightbulb, color: Colors.blue),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Tips',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.isIncomeCategory 
-                            ? '• Create categories like "Salary", "Freelance", "Business"\n• Enter your actual income amounts\n• Update regularly to track your earnings\n• Use descriptions to add more details'
-                            : '• Create categories like "Groceries", "Rent", "Insurance"\n• Enter actual amounts you spend\n• Update regularly to track spending\n• Use descriptions for specific details',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // Save Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveEntry,
+                  onPressed: _isLoading ? null : _saveEntry,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.all(16),
-                    backgroundColor: widget.isIncomeCategory ? Colors.green : Colors.red,
+                    backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                   ),
-                  child: Text(
-                    '${isEditing ? 'Update' : 'Add'} $title',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          isEditing ? 'Update Budget' : 'Create Budget',
+                          style: const TextStyle(fontSize: 16),
+                        ),
                 ),
               ),
             ],
@@ -279,71 +504,5 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         ),
       ),
     );
-  }
-
-  void _saveEntry() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        final dbHelper = DatabaseHelper();
-        final amount = double.parse(_amountController.text);
-        final categoryName = _categoryController.text.trim();
-        final description = _descriptionController.text.trim();
-        final isEditing = widget.budget != null;
-        final type = widget.isIncomeCategory ? 'income' : 'expense';
-        
-        // Check if category already exists
-        final categories = await dbHelper.getCategories(type: type);
-        Category? categoryData;
-        
-        try {
-          categoryData = categories.firstWhere(
-            (cat) => cat.name.toLowerCase() == categoryName.toLowerCase(),
-          );
-        } catch (e) {
-          // Category doesn't exist, create it
-          final newCategory = Category(
-            name: categoryName,
-            type: type,
-            icon: 'category',
-            color: widget.isIncomeCategory ? 'FF4CAF50' : 'FFF44336',
-            createdAt: DateTime.now(),
-          );
-          
-          final categoryId = await dbHelper.insertCategory(newCategory);
-          categoryData = newCategory.copyWith(id: categoryId);
-        }
-        
-        // Save as a transaction
-        final transaction = Transaction(
-          amount: amount,
-          description: description.isEmpty ? '$type entry for $categoryName' : description,
-          categoryId: categoryData.id!,
-          date: DateTime.now(),
-          type: type,
-          createdAt: DateTime.now(),
-        );
-        
-        await dbHelper.insertTransaction(transaction);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '$categoryName ${isEditing ? 'updated' : 'added'}: R${amount.toStringAsFixed(2)}',
-            ),
-          ),
-        );
-        
-        // Return true to indicate success
-        Navigator.pop(context, true);
-        
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 }

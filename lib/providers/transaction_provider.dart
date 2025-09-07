@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../models/transaction.dart';
-import '../database/database_helper.dart';
+import '../database/hive_helper.dart';
 
 class TransactionProvider with ChangeNotifier {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
   List<Transaction> _transactions = [];
   bool _isLoading = false;
   String? _error;
@@ -31,7 +30,7 @@ class TransactionProvider with ChangeNotifier {
     _clearError();
     
     try {
-      _transactions = await _databaseHelper.getTransactions();
+      _transactions = HiveHelper.getTransactionsWithCategoryInfo();
       // Sort by date (newest first)
       _transactions.sort((a, b) => b.date.compareTo(a.date));
       notifyListeners();
@@ -46,16 +45,10 @@ class TransactionProvider with ChangeNotifier {
     _clearError();
     
     try {
-      final id = await _databaseHelper.insertTransaction(transaction);
-      if (id > 0) {
-        final newTransaction = transaction.copyWith(id: id);
-        _transactions.add(newTransaction);
-        // Re-sort after adding
-        _transactions.sort((a, b) => b.date.compareTo(a.date));
-        notifyListeners();
-        return true;
-      }
-      return false;
+      await HiveHelper.insertTransaction(transaction);
+      // Reload transactions to get the updated list with keys and category info
+      await loadTransactions();
+      return true;
     } catch (e) {
       _setError('Failed to add transaction: $e');
       return false;
@@ -66,50 +59,34 @@ class TransactionProvider with ChangeNotifier {
     _clearError();
     
     try {
-      final success = await _databaseHelper.updateTransaction(transaction);
-      if (success) {
-        final index = _transactions.indexWhere((t) => t.id == transaction.id);
-        if (index != -1) {
-          _transactions[index] = transaction;
-          // Re-sort after updating
-          _transactions.sort((a, b) => b.date.compareTo(a.date));
-          notifyListeners();
-        }
-        return true;
-      }
-      return false;
+      await HiveHelper.updateTransaction(transaction);
+      await loadTransactions();
+      return true;
     } catch (e) {
       _setError('Failed to update transaction: $e');
       return false;
     }
   }
 
-  Future<bool> deleteTransaction(int id) async {
+  Future<bool> deleteTransaction(int key) async {
     _clearError();
     
     try {
-      final success = await _databaseHelper.deleteTransaction(id);
-      if (success) {
-        _transactions.removeWhere((t) => t.id == id);
-        notifyListeners();
-        return true;
-      }
-      return false;
+      await HiveHelper.deleteTransaction(key);
+      await loadTransactions();
+      return true;
     } catch (e) {
       _setError('Failed to delete transaction: $e');
       return false;
     }
   }
 
-  List<Transaction> getTransactionsByCategory(int categoryId) {
-    return _transactions.where((t) => t.categoryId == categoryId).toList();
+  List<Transaction> getTransactionsByCategory(int categoryKey) {
+    return HiveHelper.getTransactionsByCategory(categoryKey);
   }
 
   List<Transaction> getTransactionsByDateRange(DateTime startDate, DateTime endDate) {
-    return _transactions.where((t) {
-      return t.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
-             t.date.isBefore(endDate.add(const Duration(days: 1)));
-    }).toList();
+    return HiveHelper.getTransactionsByDateRange(startDate, endDate);
   }
 
   List<Transaction> getRecentTransactions({int limit = 10}) {
@@ -118,9 +95,9 @@ class TransactionProvider with ChangeNotifier {
     return sortedTransactions.take(limit).toList();
   }
 
-  double getTotalAmountByCategory(int categoryId) {
+  double getTotalAmountByCategory(int categoryKey) {
     return _transactions
-        .where((t) => t.categoryId == categoryId)
+        .where((t) => t.categoryKey == categoryKey)
         .fold(0.0, (sum, transaction) => sum + transaction.amount);
   }
 
@@ -152,8 +129,8 @@ class TransactionProvider with ChangeNotifier {
     final Map<int, double> summary = {};
     
     for (final transaction in expenseTransactions) {
-      summary[transaction.categoryId] = 
-          (summary[transaction.categoryId] ?? 0.0) + transaction.amount;
+      summary[transaction.categoryKey] = 
+          (summary[transaction.categoryKey] ?? 0.0) + transaction.amount;
     }
     
     return summary;

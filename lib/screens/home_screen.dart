@@ -430,8 +430,11 @@ class DashboardTab extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Navigate to categories tab
-                        DefaultTabController.of(context)?.animateTo(2);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const CategoryListScreen(),
+                          ),
+                        );
                       },
                       child: const Text('View All'),
                     ),

@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../models/budget.dart';
-import '../database/database_helper.dart';
+import '../database/hive_helper.dart';
 
 class BudgetProvider with ChangeNotifier {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
   List<Budget> _budgets = [];
   bool _isLoading = false;
   String? _error;
@@ -25,7 +24,7 @@ class BudgetProvider with ChangeNotifier {
     _clearError();
     
     try {
-      _budgets = await _databaseHelper.getBudgets();
+      _budgets = HiveHelper.getBudgetsWithCategoryInfo();
       notifyListeners();
     } catch (e) {
       _setError('Failed to load budgets: $e');
@@ -38,14 +37,10 @@ class BudgetProvider with ChangeNotifier {
     _clearError();
     
     try {
-      final id = await _databaseHelper.insertBudget(budget);
-      if (id > 0) {
-        final newBudget = budget.copyWith(id: id);
-        _budgets.add(newBudget);
-        notifyListeners();
-        return true;
-      }
-      return false;
+      await HiveHelper.insertBudget(budget);
+      // Reload budgets to get the updated list with keys and category info
+      await loadBudgets();
+      return true;
     } catch (e) {
       _setError('Failed to add budget: $e');
       return false;
@@ -56,56 +51,41 @@ class BudgetProvider with ChangeNotifier {
     _clearError();
     
     try {
-      final success = await _databaseHelper.updateBudget(budget);
-      if (success) {
-        final index = _budgets.indexWhere((b) => b.id == budget.id);
-        if (index != -1) {
-          _budgets[index] = budget;
-          notifyListeners();
-        }
-        return true;
-      }
-      return false;
+      await HiveHelper.updateBudget(budget);
+      await loadBudgets();
+      return true;
     } catch (e) {
       _setError('Failed to update budget: $e');
       return false;
     }
   }
 
-  Future<bool> deleteBudget(int id) async {
+  Future<bool> deleteBudget(int key) async {
     _clearError();
     
     try {
-      final success = await _databaseHelper.deleteBudget(id);
-      if (success) {
-        _budgets.removeWhere((b) => b.id == id);
-        notifyListeners();
-        return true;
-      }
-      return false;
+      await HiveHelper.deleteBudget(key);
+      await loadBudgets();
+      return true;
     } catch (e) {
       _setError('Failed to delete budget: $e');
       return false;
     }
   }
 
-  Budget? getBudgetById(int id) {
-    try {
-      return _budgets.firstWhere((budget) => budget.id == id);
-    } catch (e) {
-      return null;
-    }
+  Budget? getBudgetByKey(int key) {
+    return HiveHelper.getBudget(key);
   }
 
-  List<Budget> getBudgetsByCategory(int categoryId) {
-    return _budgets.where((budget) => budget.categoryId == categoryId).toList();
+  List<Budget> getBudgetsByCategory(int categoryKey) {
+    return HiveHelper.getBudgetsByCategory(categoryKey);
   }
 
-  Budget? getActiveBudgetForCategory(int categoryId) {
+  Budget? getActiveBudgetForCategory(int categoryKey) {
     final now = DateTime.now();
     try {
       return _budgets.firstWhere((budget) =>
-          budget.categoryId == categoryId &&
+          budget.categoryKey == categoryKey &&
           budget.startDate.isBefore(now.add(const Duration(days: 1))) &&
           budget.endDate.isAfter(now.subtract(const Duration(days: 1))));
     } catch (e) {
@@ -128,7 +108,7 @@ class BudgetProvider with ChangeNotifier {
 
   List<Budget> getOverspentBudgets(Map<int, double> categorySpending) {
     return _budgets.where((budget) {
-      final spent = categorySpending[budget.categoryId] ?? 0.0;
+      final spent = categorySpending[budget.categoryKey] ?? 0.0;
       return isBudgetExceeded(budget, spent);
     }).toList();
   }
@@ -175,13 +155,13 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  bool hasConflictingBudget(int categoryId, DateTime startDate, DateTime endDate, {int? excludeBudgetId}) {
+  bool hasConflictingBudget(int categoryKey, DateTime startDate, DateTime endDate, {int? excludeBudgetKey}) {
     return _budgets.any((budget) {
-      if (excludeBudgetId != null && budget.id == excludeBudgetId) {
+      if (excludeBudgetKey != null && budget.key == excludeBudgetKey) {
         return false;
       }
       
-      return budget.categoryId == categoryId &&
+      return budget.categoryKey == categoryKey &&
              ((startDate.isBefore(budget.endDate.add(const Duration(days: 1))) &&
                endDate.isAfter(budget.startDate.subtract(const Duration(days: 1)))));
     });

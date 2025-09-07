@@ -4,9 +4,13 @@ import 'screens/home_screen.dart';
 import 'providers/category_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/budget_provider.dart';
+import 'database/hive_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Hive
+  await HiveHelper.initHive();
   
   runApp(const SmartSpenderApp());
 }

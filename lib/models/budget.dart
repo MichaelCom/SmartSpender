@@ -1,35 +1,53 @@
-class Budget {
-  final int? id;
-  final int categoryId;
-  final double amount;
-  final String period; // 'weekly', 'monthly', 'yearly'
-  final DateTime startDate;
-  final DateTime endDate;
-  final DateTime createdAt;
+import 'package:hive/hive.dart';
 
-  // Optional fields from joined queries
-  final String? categoryName;
-  final String? categoryIcon;
-  final String? categoryColor;
+part 'budget.g.dart';
+
+@HiveType(typeId: 2)
+class Budget extends HiveObject {
+  @HiveField(0)
+  int categoryKey; // Reference to Category's Hive key
+
+  @HiveField(1)
+  double amount;
+
+  @HiveField(2)
+  String period; // 'weekly', 'monthly', 'yearly'
+
+  @HiveField(3)
+  DateTime startDate;
+
+  @HiveField(4)
+  DateTime endDate;
+
+  @HiveField(5)
+  DateTime createdAt;
+
+  @HiveField(6)
+  String? description;
+
+  // Optional fields from joined queries (not stored in Hive)
+  String? categoryName;
+  String? categoryIcon;
+  String? categoryColor;
 
   Budget({
-    this.id,
-    required this.categoryId,
+    required this.categoryKey,
     required this.amount,
     required this.period,
     required this.startDate,
     required this.endDate,
     required this.createdAt,
+    this.description,
     this.categoryName,
     this.categoryIcon,
     this.categoryColor,
   });
 
-  // Convert Budget to Map for database operations
+  // Convert Budget to Map for compatibility
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'category_id': categoryId,
+      'key': key, // Hive's auto-generated key
+      'category_id': categoryKey,
       'amount': amount,
       'period': period,
       'start_date': startDate.toIso8601String().split('T')[0], // Store as YYYY-MM-DD
@@ -38,11 +56,10 @@ class Budget {
     };
   }
 
-  // Create Budget from Map (database result)
+  // Create Budget from Map (for migration purposes)
   factory Budget.fromMap(Map<String, dynamic> map) {
     return Budget(
-      id: map['id']?.toInt(),
-      categoryId: map['category_id']?.toInt() ?? 0,
+      categoryKey: map['category_id']?.toInt() ?? 0,
       amount: (map['amount'] as num).toDouble(),
       period: map['period'] ?? '',
       startDate: DateTime.parse(map['start_date']),
@@ -56,25 +73,25 @@ class Budget {
 
   // Create a copy of Budget with updated fields
   Budget copyWith({
-    int? id,
-    int? categoryId,
+    int? categoryKey,
     double? amount,
     String? period,
     DateTime? startDate,
     DateTime? endDate,
     DateTime? createdAt,
+    String? description,
     String? categoryName,
     String? categoryIcon,
     String? categoryColor,
   }) {
     return Budget(
-      id: id ?? this.id,
-      categoryId: categoryId ?? this.categoryId,
+      categoryKey: categoryKey ?? this.categoryKey,
       amount: amount ?? this.amount,
       period: period ?? this.period,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       createdAt: createdAt ?? this.createdAt,
+      description: description ?? this.description,
       categoryName: categoryName ?? this.categoryName,
       categoryIcon: categoryIcon ?? this.categoryIcon,
       categoryColor: categoryColor ?? this.categoryColor,
@@ -83,15 +100,15 @@ class Budget {
 
   @override
   String toString() {
-    return 'Budget{id: $id, categoryId: $categoryId, amount: $amount, period: $period, startDate: $startDate, endDate: $endDate, createdAt: $createdAt}';
+    return 'Budget{key: $key, categoryKey: $categoryKey, amount: $amount, period: $period, startDate: $startDate, endDate: $endDate, createdAt: $createdAt}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is Budget &&
-        other.id == id &&
-        other.categoryId == categoryId &&
+        other.key == key &&
+        other.categoryKey == categoryKey &&
         other.amount == amount &&
         other.period == period &&
         other.startDate == startDate &&
@@ -101,8 +118,8 @@ class Budget {
 
   @override
   int get hashCode {
-    return id.hashCode ^
-        categoryId.hashCode ^
+    return key.hashCode ^
+        categoryKey.hashCode ^
         amount.hashCode ^
         period.hashCode ^
         startDate.hashCode ^
@@ -120,7 +137,7 @@ class Budget {
   }
   
   String get displayAmount {
-    return '\$${formattedAmount}';
+    return 'R${formattedAmount}';
   }
 
   bool get isActive {
@@ -155,4 +172,10 @@ class Budget {
   double getRemainingAmount(double spentAmount) {
     return (amount - spentAmount).clamp(0.0, double.infinity);
   }
+
+  // Get the ID (Hive key) for compatibility
+  int? get id => key;
+  
+  // Get categoryId for compatibility
+  int get categoryId => categoryKey;
 }
