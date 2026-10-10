@@ -1,37 +1,25 @@
-import 'package:hive/hive.dart';
-
-part 'budget.g.dart';
-
-@HiveType(typeId: 2)
-class Budget extends HiveObject {
-  @HiveField(0)
-  int categoryKey; // Reference to Category's Hive key
-
-  @HiveField(1)
+/// Plain domain model for a budget.
+///
+/// A budget always belongs to a category; if the category is deleted the budget
+/// is deleted too (cascade).
+class Budget {
+  final int? id;
+  int categoryId;
   double amount;
-
-  @HiveField(2)
   String period; // 'weekly', 'monthly', 'yearly'
-
-  @HiveField(3)
   DateTime startDate;
-
-  @HiveField(4)
   DateTime endDate;
-
-  @HiveField(5)
   DateTime createdAt;
-
-  @HiveField(6)
   String? description;
 
-  // Optional fields from joined queries (not stored in Hive)
+  // Optional fields populated from joined queries (not persisted directly).
   String? categoryName;
   String? categoryIcon;
   String? categoryColor;
 
   Budget({
-    required this.categoryKey,
+    this.id,
+    required this.categoryId,
     required this.amount,
     required this.period,
     required this.startDate,
@@ -43,37 +31,9 @@ class Budget extends HiveObject {
     this.categoryColor,
   });
 
-  // Convert Budget to Map for compatibility
-  Map<String, dynamic> toMap() {
-    return {
-      'key': key, // Hive's auto-generated key
-      'category_id': categoryKey,
-      'amount': amount,
-      'period': period,
-      'start_date': startDate.toIso8601String().split('T')[0], // Store as YYYY-MM-DD
-      'end_date': endDate.toIso8601String().split('T')[0], // Store as YYYY-MM-DD
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
-
-  // Create Budget from Map (for migration purposes)
-  factory Budget.fromMap(Map<String, dynamic> map) {
-    return Budget(
-      categoryKey: map['category_id']?.toInt() ?? 0,
-      amount: (map['amount'] as num).toDouble(),
-      period: map['period'] ?? '',
-      startDate: DateTime.parse(map['start_date']),
-      endDate: DateTime.parse(map['end_date']),
-      createdAt: DateTime.parse(map['created_at']),
-      categoryName: map['category_name'],
-      categoryIcon: map['category_icon'],
-      categoryColor: map['category_color'],
-    );
-  }
-
-  // Create a copy of Budget with updated fields
   Budget copyWith({
-    int? categoryKey,
+    int? id,
+    int? categoryId,
     double? amount,
     String? period,
     DateTime? startDate,
@@ -85,7 +45,8 @@ class Budget extends HiveObject {
     String? categoryColor,
   }) {
     return Budget(
-      categoryKey: categoryKey ?? this.categoryKey,
+      id: id ?? this.id,
+      categoryId: categoryId ?? this.categoryId,
       amount: amount ?? this.amount,
       period: period ?? this.period,
       startDate: startDate ?? this.startDate,
@@ -100,15 +61,15 @@ class Budget extends HiveObject {
 
   @override
   String toString() {
-    return 'Budget{key: $key, categoryKey: $categoryKey, amount: $amount, period: $period, startDate: $startDate, endDate: $endDate, createdAt: $createdAt}';
+    return 'Budget{id: $id, categoryId: $categoryId, amount: $amount, period: $period, startDate: $startDate, endDate: $endDate, createdAt: $createdAt}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is Budget &&
-        other.key == key &&
-        other.categoryKey == categoryKey &&
+        other.id == id &&
+        other.categoryId == categoryId &&
         other.amount == amount &&
         other.period == period &&
         other.startDate == startDate &&
@@ -118,8 +79,8 @@ class Budget extends HiveObject {
 
   @override
   int get hashCode {
-    return key.hashCode ^
-        categoryKey.hashCode ^
+    return id.hashCode ^
+        categoryId.hashCode ^
         amount.hashCode ^
         period.hashCode ^
         startDate.hashCode ^
@@ -131,18 +92,15 @@ class Budget extends HiveObject {
   bool get isWeekly => period == 'weekly';
   bool get isMonthly => period == 'monthly';
   bool get isYearly => period == 'yearly';
-  
-  String get formattedAmount {
-    return amount.toStringAsFixed(2);
-  }
-  
-  String get displayAmount {
-    return 'R$formattedAmount';
-  }
+
+  String get formattedAmount => amount.toStringAsFixed(2);
+
+  String get displayAmount => 'R$formattedAmount';
 
   bool get isActive {
     final now = DateTime.now();
-    return now.isAfter(startDate) && now.isBefore(endDate.add(const Duration(days: 1)));
+    return now.isAfter(startDate) &&
+        now.isBefore(endDate.add(const Duration(days: 1)));
   }
 
   Duration get remainingDuration {
@@ -153,29 +111,22 @@ class Budget extends HiveObject {
     return endDate.difference(now);
   }
 
-  int get remainingDays {
-    return remainingDuration.inDays;
-  }
+  int get remainingDays => remainingDuration.inDays;
 
-  // Calculate budget progress (requires spent amount)
   double calculateProgress(double spentAmount) {
     if (amount <= 0) return 0.0;
     return (spentAmount / amount).clamp(0.0, 1.0);
   }
 
-  // Check if budget is exceeded
-  bool isExceeded(double spentAmount) {
-    return spentAmount > amount;
-  }
+  bool isExceeded(double spentAmount) => spentAmount > amount;
 
-  // Get remaining budget amount
   double getRemainingAmount(double spentAmount) {
     return (amount - spentAmount).clamp(0.0, double.infinity);
   }
 
-  // Get the ID (Hive key) for compatibility
-  int? get id => key;
-  
-  // Get categoryId for compatibility
-  int get categoryId => categoryKey;
+  /// Backwards-compatible alias for [id].
+  int? get key => id;
+
+  /// Backwards-compatible alias for [categoryId].
+  int get categoryKey => categoryId;
 }

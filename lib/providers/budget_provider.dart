@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../models/budget.dart';
-import '../database/hive_helper.dart';
+import '../repositories/repositories.dart';
 
 class BudgetProvider with ChangeNotifier {
+  BudgetProvider(this._repository);
+
+  final BudgetRepository _repository;
+
   List<Budget> _budgets = [];
   bool _isLoading = false;
   String? _error;
@@ -15,16 +19,16 @@ class BudgetProvider with ChangeNotifier {
     final now = DateTime.now();
     return _budgets.where((budget) {
       return budget.startDate.isBefore(now.add(const Duration(days: 1))) &&
-             budget.endDate.isAfter(now.subtract(const Duration(days: 1)));
+          budget.endDate.isAfter(now.subtract(const Duration(days: 1)));
     }).toList();
   }
 
   Future<void> loadBudgets() async {
     _setLoading(true);
     _clearError();
-    
+
     try {
-      _budgets = HiveHelper.getBudgetsWithCategoryInfo();
+      _budgets = await _repository.getAllWithCategoryInfo();
       notifyListeners();
     } catch (e) {
       _setError('Failed to load budgets: $e');
@@ -35,10 +39,9 @@ class BudgetProvider with ChangeNotifier {
 
   Future<bool> addBudget(Budget budget) async {
     _clearError();
-    
+
     try {
-      await HiveHelper.insertBudget(budget);
-      // Reload budgets to get the updated list with keys and category info
+      await _repository.insert(budget);
       await loadBudgets();
       return true;
     } catch (e) {
@@ -49,9 +52,9 @@ class BudgetProvider with ChangeNotifier {
 
   Future<bool> updateBudget(Budget budget) async {
     _clearError();
-    
+
     try {
-      await HiveHelper.updateBudget(budget);
+      await _repository.update(budget);
       await loadBudgets();
       return true;
     } catch (e) {
@@ -60,11 +63,11 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> deleteBudget(int key) async {
+  Future<bool> deleteBudget(int id) async {
     _clearError();
-    
+
     try {
-      await HiveHelper.deleteBudget(key);
+      await _repository.delete(id);
       await loadBudgets();
       return true;
     } catch (e) {
@@ -73,19 +76,19 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  Budget? getBudgetByKey(int key) {
-    return HiveHelper.getBudget(key);
+  Future<Budget?> getBudgetByKey(int id) {
+    return _repository.getById(id);
   }
 
-  List<Budget> getBudgetsByCategory(int categoryKey) {
-    return HiveHelper.getBudgetsByCategory(categoryKey);
+  Future<List<Budget>> getBudgetsByCategory(int categoryId) {
+    return _repository.getByCategory(categoryId);
   }
 
-  Budget? getActiveBudgetForCategory(int categoryKey) {
+  Budget? getActiveBudgetForCategory(int categoryId) {
     final now = DateTime.now();
     try {
       return _budgets.firstWhere((budget) =>
-          budget.categoryKey == categoryKey &&
+          budget.categoryId == categoryId &&
           budget.startDate.isBefore(now.add(const Duration(days: 1))) &&
           budget.endDate.isAfter(now.subtract(const Duration(days: 1))));
     } catch (e) {
@@ -108,7 +111,7 @@ class BudgetProvider with ChangeNotifier {
 
   List<Budget> getOverspentBudgets(Map<int, double> categorySpending) {
     return _budgets.where((budget) {
-      final spent = categorySpending[budget.categoryKey] ?? 0.0;
+      final spent = categorySpending[budget.categoryId] ?? 0.0;
       return isBudgetExceeded(budget, spent);
     }).toList();
   }
@@ -134,7 +137,7 @@ class BudgetProvider with ChangeNotifier {
   List<Budget> getBudgetsNearingEnd({int daysThreshold = 7}) {
     final now = DateTime.now();
     final threshold = now.add(Duration(days: daysThreshold));
-    
+
     return activeBudgets.where((budget) {
       return budget.endDate.isBefore(threshold.add(const Duration(days: 1)));
     }).toList();
@@ -155,15 +158,20 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  bool hasConflictingBudget(int categoryKey, DateTime startDate, DateTime endDate, {int? excludeBudgetKey}) {
+  bool hasConflictingBudget(
+    int categoryId,
+    DateTime startDate,
+    DateTime endDate, {
+    int? excludeBudgetKey,
+  }) {
     return _budgets.any((budget) {
-      if (excludeBudgetKey != null && budget.key == excludeBudgetKey) {
+      if (excludeBudgetKey != null && budget.id == excludeBudgetKey) {
         return false;
       }
-      
-      return budget.categoryKey == categoryKey &&
-             ((startDate.isBefore(budget.endDate.add(const Duration(days: 1))) &&
-               endDate.isAfter(budget.startDate.subtract(const Duration(days: 1)))));
+
+      return budget.categoryId == categoryId &&
+          (startDate.isBefore(budget.endDate.add(const Duration(days: 1))) &&
+              endDate.isAfter(budget.startDate.subtract(const Duration(days: 1))));
     });
   }
 
@@ -181,18 +189,9 @@ class BudgetProvider with ChangeNotifier {
     _error = null;
   }
 
-  /// Clear all data and reload
+  /// Resets in-memory state. Persistence is cleared via [AppRepositories].
   Future<void> clearAllData() async {
-    _setLoading(true);
-    _clearError();
-    
-    try {
-      _budgets.clear();
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to clear data: $e');
-    } finally {
-      _setLoading(false);
-    }
+    _budgets = [];
+    notifyListeners();
   }
 }

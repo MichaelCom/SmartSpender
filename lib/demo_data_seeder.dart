@@ -1,11 +1,14 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'database/hive_helper.dart';
 import 'models/category.dart';
 import 'models/transaction.dart';
 import 'models/budget.dart';
+import 'repositories/repositories.dart';
 
 class DemoDataSeeder {
+  DemoDataSeeder(this._repositories);
+
+  final AppRepositories _repositories;
   final Random _random = Random();
 
   // Demo categories with icons and colors
@@ -225,7 +228,7 @@ class DemoDataSeeder {
 
   Future<void> seedDemoData() async {
     debugPrint('🗑️ Clearing existing data...');
-    await HiveHelper.clearAllData();
+    await _repositories.clearAllData();
 
     debugPrint('📂 Creating categories...');
     final categoryKeys = await _createCategories();
@@ -254,7 +257,7 @@ class DemoDataSeeder {
         color: categoryData['color'],
         createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
       );
-      final key = await HiveHelper.insertCategory(category);
+      final key = await _repositories.categories.insert(category);
       categoryKeys['expense']!.add(key);
     }
 
@@ -267,7 +270,7 @@ class DemoDataSeeder {
         color: categoryData['color'],
         createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
       );
-      final key = await HiveHelper.insertCategory(category);
+      final key = await _repositories.categories.insert(category);
       categoryKeys['income']!.add(key);
     }
 
@@ -277,6 +280,10 @@ class DemoDataSeeder {
   Future<void> _createTransactions(Map<String, List<int>> categoryKeys) async {
     final now = DateTime.now();
     final transactions = <Transaction>[];
+    final categoryNames = <int, String>{};
+    for (final category in await _repositories.categories.getAll()) {
+      if (category.id != null) categoryNames[category.id!] = category.name;
+    }
 
     // Create transactions for the last 6 months
     for (int monthOffset = 0; monthOffset < 6; monthOffset++) {
@@ -287,13 +294,13 @@ class DemoDataSeeder {
       final incomeCount = 2 + _random.nextInt(3);
       for (int i = 0; i < incomeCount; i++) {
         final categoryKey = categoryKeys['income']![_random.nextInt(categoryKeys['income']!.length)];
-        final category = HiveHelper.getCategory(categoryKey);
-        final descriptions = _transactionDescriptions[category!.name] ?? ['Income'];
-        
+        final name = categoryNames[categoryKey] ?? 'Income';
+        final descriptions = _transactionDescriptions[name] ?? ['Income'];
+
         final transaction = Transaction(
-          amount: _generateIncomeAmount(category.name),
+          amount: _generateIncomeAmount(name),
           description: descriptions[_random.nextInt(descriptions.length)],
-          categoryKey: categoryKey,
+          categoryId: categoryKey,
           date: DateTime(monthDate.year, monthDate.month, 1 + _random.nextInt(daysInMonth)),
           type: 'income',
           createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(180))),
@@ -305,13 +312,13 @@ class DemoDataSeeder {
       final expenseCount = 15 + _random.nextInt(11);
       for (int i = 0; i < expenseCount; i++) {
         final categoryKey = categoryKeys['expense']![_random.nextInt(categoryKeys['expense']!.length)];
-        final category = HiveHelper.getCategory(categoryKey);
-        final descriptions = _transactionDescriptions[category!.name] ?? ['Expense'];
-        
+        final name = categoryNames[categoryKey] ?? 'Expense';
+        final descriptions = _transactionDescriptions[name] ?? ['Expense'];
+
         final transaction = Transaction(
-          amount: _generateExpenseAmount(category.name),
+          amount: _generateExpenseAmount(name),
           description: descriptions[_random.nextInt(descriptions.length)],
-          categoryKey: categoryKey,
+          categoryId: categoryKey,
           date: DateTime(monthDate.year, monthDate.month, 1 + _random.nextInt(daysInMonth)),
           type: 'expense',
           createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(180))),
@@ -322,7 +329,7 @@ class DemoDataSeeder {
 
     // Insert all transactions
     for (final transaction in transactions) {
-      await HiveHelper.insertTransaction(transaction);
+      await _repositories.transactions.insert(transaction);
     }
 
     debugPrint('   Created ${transactions.length} transactions');
@@ -335,51 +342,53 @@ class DemoDataSeeder {
     // Create monthly budgets for major expense categories
     final majorCategories = [
       'Food & Dining',
-      'Transportation', 
+      'Transportation',
       'Shopping',
       'Entertainment',
       'Bills & Utilities',
     ];
 
+    final expenseCategories =
+        await _repositories.categories.getByType('expense');
+
     for (final categoryName in majorCategories) {
-      // Find the category key
-      final categories = HiveHelper.getCategoriesByType('expense');
-      final category = categories.firstWhere((cat) => cat.name == categoryName);
-      
-      if (category.key != null) {
+      final matches =
+          expenseCategories.where((cat) => cat.name == categoryName);
+      if (matches.isEmpty) continue;
+      final category = matches.first;
+
+      if (category.id != null) {
         // Create budget for current month
         final startDate = DateTime(now.year, now.month, 1);
         final endDate = DateTime(now.year, now.month + 1, 0);
-        
-        final budget = Budget(
-          categoryKey: category.key!,
+
+        budgets.add(Budget(
+          categoryId: category.id!,
           amount: _generateBudgetAmount(categoryName),
           period: 'monthly',
           startDate: startDate,
           endDate: endDate,
           createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
-        );
-        budgets.add(budget);
+        ));
 
         // Create budget for next month
         final nextStartDate = DateTime(now.year, now.month + 1, 1);
         final nextEndDate = DateTime(now.year, now.month + 2, 0);
-        
-        final nextBudget = Budget(
-          categoryKey: category.key!,
+
+        budgets.add(Budget(
+          categoryId: category.id!,
           amount: _generateBudgetAmount(categoryName),
           period: 'monthly',
           startDate: nextStartDate,
           endDate: nextEndDate,
           createdAt: DateTime.now().subtract(Duration(days: _random.nextInt(30))),
-        );
-        budgets.add(nextBudget);
+        ));
       }
     }
 
     // Insert all budgets
     for (final budget in budgets) {
-      await HiveHelper.insertBudget(budget);
+      await _repositories.budgets.insert(budget);
     }
 
     debugPrint('   Created ${budgets.length} budgets');
@@ -454,7 +463,7 @@ class DemoDataSeeder {
 }
 
 // Standalone function to run the seeder
-Future<void> seedDemoData() async {
-  final seeder = DemoDataSeeder();
+Future<void> seedDemoData(AppRepositories repositories) async {
+  final seeder = DemoDataSeeder(repositories);
   await seeder.seedDemoData();
 }

@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../models/category.dart' as models;
-import '../database/hive_helper.dart';
+import '../repositories/repositories.dart';
 
 class CategoryProvider with ChangeNotifier {
+  CategoryProvider(this._repository);
+
+  final CategoryRepository _repository;
+
   List<models.Category> _categories = [];
   bool _isLoading = false;
   String? _error;
@@ -22,7 +26,7 @@ class CategoryProvider with ChangeNotifier {
     _clearError();
 
     try {
-      _categories = HiveHelper.getAllCategories();
+      _categories = await _repository.getAll();
       notifyListeners();
     } catch (e) {
       _setError('Failed to load categories: $e');
@@ -35,8 +39,7 @@ class CategoryProvider with ChangeNotifier {
     _clearError();
 
     try {
-      await HiveHelper.insertCategory(category);
-      // Reload categories to get the updated list with keys
+      await _repository.insert(category);
       await loadCategories();
       return true;
     } catch (e) {
@@ -49,7 +52,7 @@ class CategoryProvider with ChangeNotifier {
     _clearError();
 
     try {
-      await HiveHelper.updateCategory(category);
+      await _repository.update(category);
       await loadCategories();
       return true;
     } catch (e) {
@@ -58,11 +61,11 @@ class CategoryProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> deleteCategory(int key) async {
+  Future<bool> deleteCategory(int id) async {
     _clearError();
 
     try {
-      await HiveHelper.deleteCategory(key);
+      await _repository.delete(id);
       await loadCategories();
       return true;
     } catch (e) {
@@ -71,104 +74,41 @@ class CategoryProvider with ChangeNotifier {
     }
   }
 
-  models.Category? getCategoryByKey(int key) {
-    return HiveHelper.getCategory(key);
+  Future<models.Category?> getCategoryByKey(int id) {
+    return _repository.getById(id);
   }
 
-  // Backward compatibility method - maps key to id
+  /// Synchronous lookup against the already-loaded list (used by the UI).
   models.Category? getCategoryById(int id) {
-    return getCategoryByKey(id);
+    for (final c in _categories) {
+      if (c.id == id) return c;
+    }
+    return null;
   }
 
   Future<void> initializeDefaultCategories() async {
     if (_categories.isNotEmpty) return;
 
-    final defaultCategories = [
+    final now = DateTime.now();
+    final defaultCategories = <models.Category>[
       // Income categories
-      models.Category(
-        name: 'Salary',
-        type: 'income',
-        color: '#4CAF50',
-        icon: 'work',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Investment',
-        type: 'income',
-        color: '#FF9800',
-        icon: 'trending_up',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Other Income',
-        type: 'income',
-        color: '#9C27B0',
-        icon: 'attach_money',
-        createdAt: DateTime.now(),
-      ),
-
+      models.Category(name: 'Salary', type: 'income', color: '#4CAF50', icon: 'work', createdAt: now),
+      models.Category(name: 'Investment', type: 'income', color: '#FF9800', icon: 'trending_up', createdAt: now),
+      models.Category(name: 'Other Income', type: 'income', color: '#9C27B0', icon: 'attach_money', createdAt: now),
       // Expense categories
-      models.Category(
-        name: 'Food & Dining',
-        type: 'expense',
-        color: '#F44336',
-        icon: 'restaurant',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Transportation',
-        type: 'expense',
-        color: '#3F51B5',
-        icon: 'directions_car',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Shopping',
-        type: 'expense',
-        color: '#E91E63',
-        icon: 'shopping_bag',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Entertainment',
-        type: 'expense',
-        color: '#9C27B0',
-        icon: 'movie',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Bills & Utilities',
-        type: 'expense',
-        color: '#607D8B',
-        icon: 'receipt',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Healthcare',
-        type: 'expense',
-        color: '#4CAF50',
-        icon: 'local_hospital',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Education',
-        type: 'expense',
-        color: '#FF9800',
-        icon: 'school',
-        createdAt: DateTime.now(),
-      ),
-      models.Category(
-        name: 'Other Expenses',
-        type: 'expense',
-        color: '#795548',
-        icon: 'category',
-        createdAt: DateTime.now(),
-      ),
+      models.Category(name: 'Food & Dining', type: 'expense', color: '#F44336', icon: 'restaurant', createdAt: now),
+      models.Category(name: 'Transportation', type: 'expense', color: '#3F51B5', icon: 'directions_car', createdAt: now),
+      models.Category(name: 'Shopping', type: 'expense', color: '#E91E63', icon: 'shopping_bag', createdAt: now),
+      models.Category(name: 'Entertainment', type: 'expense', color: '#9C27B0', icon: 'movie', createdAt: now),
+      models.Category(name: 'Bills & Utilities', type: 'expense', color: '#607D8B', icon: 'receipt', createdAt: now),
+      models.Category(name: 'Healthcare', type: 'expense', color: '#4CAF50', icon: 'local_hospital', createdAt: now),
+      models.Category(name: 'Education', type: 'expense', color: '#FF9800', icon: 'school', createdAt: now),
+      models.Category(name: 'Other Expenses', type: 'expense', color: '#795548', icon: 'category', createdAt: now),
     ];
 
     try {
       for (final category in defaultCategories) {
-        await HiveHelper.insertCategory(category);
+        await _repository.insert(category);
       }
       await loadCategories();
     } catch (e) {
@@ -190,19 +130,9 @@ class CategoryProvider with ChangeNotifier {
     _error = null;
   }
 
-  /// Clear all data and reload
+  /// Resets in-memory state. Persistence is cleared via [AppRepositories].
   Future<void> clearAllData() async {
-    _setLoading(true);
-    _clearError();
-    
-    try {
-      // Persistence is wiped by DatabaseUtils; only reset in-memory state here.
-      _categories.clear();
-      notifyListeners();
-    } catch (e) {
-      _setError('Failed to clear data: $e');
-    } finally {
-      _setLoading(false);
-    }
+    _categories = [];
+    notifyListeners();
   }
 }

@@ -8,14 +8,14 @@ void main() {
     test('isIncome / isExpense reflect type', () {
       final income = Transaction(
         amount: 50,
-        categoryKey: 1,
+        categoryId: 1,
         date: DateTime(2024, 1, 1),
         type: 'income',
         createdAt: DateTime(2024, 1, 1),
       );
       final expense = Transaction(
         amount: 50,
-        categoryKey: 1,
+        categoryId: 1,
         date: DateTime(2024, 1, 1),
         type: 'expense',
         createdAt: DateTime(2024, 1, 1),
@@ -30,7 +30,7 @@ void main() {
     test('formattedAmount keeps two decimals', () {
       final tx = Transaction(
         amount: 12.5,
-        categoryKey: 1,
+        categoryId: 1,
         date: DateTime(2024, 1, 1),
         type: 'expense',
         createdAt: DateTime(2024, 1, 1),
@@ -41,14 +41,14 @@ void main() {
     test('displayAmount prefixes sign and currency', () {
       final income = Transaction(
         amount: 100,
-        categoryKey: 1,
+        categoryId: 1,
         date: DateTime(2024, 1, 1),
         type: 'income',
         createdAt: DateTime(2024, 1, 1),
       );
       final expense = Transaction(
         amount: 100,
-        categoryKey: 1,
+        categoryId: 1,
         date: DateTime(2024, 1, 1),
         type: 'expense',
         createdAt: DateTime(2024, 1, 1),
@@ -62,7 +62,7 @@ void main() {
       final tx = Transaction(
         amount: 10,
         description: 'Coffee',
-        categoryKey: 1,
+        categoryId: 1,
         date: DateTime(2024, 1, 1),
         type: 'expense',
         createdAt: DateTime(2024, 1, 1),
@@ -79,7 +79,7 @@ void main() {
     test('categoryId mirrors categoryKey', () {
       final tx = Transaction(
         amount: 10,
-        categoryKey: 7,
+        categoryId: 7,
         date: DateTime(2024, 1, 1),
         type: 'expense',
         createdAt: DateTime(2024, 1, 1),
@@ -90,7 +90,7 @@ void main() {
 
   group('Budget progress helpers', () {
     final budget = Budget(
-      categoryKey: 1,
+      categoryId: 1,
       amount: 1000,
       period: 'monthly',
       startDate: DateTime(2024, 6, 1),
@@ -106,7 +106,7 @@ void main() {
 
     test('calculateProgress returns 0 when amount is non-positive', () {
       final zero = Budget(
-        categoryKey: 1,
+        categoryId: 1,
         amount: 0,
         period: 'monthly',
         startDate: DateTime(2024, 6, 1),
@@ -139,7 +139,7 @@ void main() {
     test('isActive is true only within the window', () {
       final now = DateTime.now();
       final active = Budget(
-        categoryKey: 1,
+        categoryId: 1,
         amount: 100,
         period: 'monthly',
         startDate: now.subtract(const Duration(days: 5)),
@@ -147,7 +147,7 @@ void main() {
         createdAt: now,
       );
       final past = Budget(
-        categoryKey: 1,
+        categoryId: 1,
         amount: 100,
         period: 'monthly',
         startDate: now.subtract(const Duration(days: 30)),

@@ -50,7 +50,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     
     // Load the category
     final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
-    _selectedCategory = categoryProvider.getCategoryByKey(budget.categoryKey);
+    _selectedCategory = categoryProvider.getCategoryById(budget.categoryKey);
   }
 
   void _updateEndDate() {
@@ -123,7 +123,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       if (widget.budget == null) {
         // Creating new budget
         final budget = Budget(
-          categoryKey: _selectedCategory!.key!,
+          categoryId: _selectedCategory!.id!,
           amount: amount,
           period: _selectedPeriod,
           startDate: _startDate,
@@ -135,7 +135,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       } else {
         // Updating existing budget
         final updatedBudget = widget.budget!.copyWith(
-          categoryKey: _selectedCategory!.key!,
+          categoryId: _selectedCategory!.id!,
           amount: amount,
           period: _selectedPeriod,
           startDate: _startDate,

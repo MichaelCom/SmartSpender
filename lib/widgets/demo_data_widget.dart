@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../test_database.dart';
+import '../repositories/repositories.dart';
 import '../providers/category_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/budget_provider.dart';
@@ -22,7 +23,9 @@ class _DemoDataWidgetState extends State<DemoDataWidget> {
 
     try {
       // Seed the demo data
-      await seedDemoDataAndTest();
+      final repositories =
+          Provider.of<AppRepositories>(context, listen: false);
+      await seedDemoDataAndTest(repositories);
 
       // Refresh all providers to show the new data
       if (mounted) {

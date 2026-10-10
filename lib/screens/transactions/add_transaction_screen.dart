@@ -120,7 +120,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
-      categoryKey: _selectedCategoryKey!,
+      categoryId: _selectedCategoryKey!,
       date: _selectedDate,
       type: _selectedType,
       createdAt: widget.transaction?.createdAt ?? DateTime.now(),
@@ -382,7 +382,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             if (_selectedCategoryKey != null)
               Consumer<CategoryProvider>(
                 builder: (context, categoryProvider, child) {
-                  final category = categoryProvider.getCategoryByKey(
+                  final category = categoryProvider.getCategoryById(
                     _selectedCategoryKey!,
                   );
                   if (category == null) return const SizedBox.shrink();

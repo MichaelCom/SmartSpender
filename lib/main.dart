@@ -4,27 +4,35 @@ import 'screens/home_screen.dart';
 import 'providers/category_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/budget_provider.dart';
-import 'database/hive_helper.dart';
+import 'database/app_database.dart';
+import 'repositories/repositories.dart';
+import 'repositories/drift_repositories.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Hive
-  await HiveHelper.initHive();
-  
-  runApp(const SmartSpenderApp());
+
+  final database = AppDatabase();
+  final repositories = DriftRepositories(database);
+
+  runApp(SmartSpenderApp(repositories: repositories));
 }
 
 class SmartSpenderApp extends StatelessWidget {
-  const SmartSpenderApp({super.key});
+  const SmartSpenderApp({super.key, required this.repositories});
+
+  final AppRepositories repositories;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => CategoryProvider()),
-        ChangeNotifierProvider(create: (_) => TransactionProvider()),
-        ChangeNotifierProvider(create: (_) => BudgetProvider()),
+        Provider<AppRepositories>.value(value: repositories),
+        ChangeNotifierProvider(
+            create: (_) => CategoryProvider(repositories.categories)),
+        ChangeNotifierProvider(
+            create: (_) => TransactionProvider(repositories.transactions)),
+        ChangeNotifierProvider(
+            create: (_) => BudgetProvider(repositories.budgets)),
       ],
       child: MaterialApp(
         title: 'SmartSpender',

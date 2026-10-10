@@ -398,9 +398,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                     itemCount: filteredTransactions.length,
                     itemBuilder: (context, index) {
                       final transaction = filteredTransactions[index];
-                      final category = categoryProvider.getCategoryById(
-                        transaction.categoryId,
-                      );
+                      final categoryId = transaction.categoryId;
+                      final category = categoryId == null
+                          ? null
+                          : categoryProvider.getCategoryById(categoryId);
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -423,7 +424,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                             ),
                           ),
                           title: Text(
-                            category?.name ?? 'Unknown Category',
+                            category?.name ?? 'Uncategorised',
                             style: const TextStyle(fontWeight: FontWeight.w500),
                           ),
                           subtitle: Column(

@@ -9,7 +9,7 @@ import 'reports/reports_screen.dart';
 import '../providers/category_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/budget_provider.dart';
-import '../utils/database_utils.dart';
+import '../repositories/repositories.dart';
 import '../widgets/logo_widget.dart';
 import '../widgets/demo_data_widget.dart';
 import '../debug_screen.dart';
@@ -139,9 +139,11 @@ class _DashboardTabState extends State<DashboardTab> {
         );
 
         // Clear data from database
-        await DatabaseUtils.clearAllData();
+        final repositories =
+            Provider.of<AppRepositories>(context, listen: false);
+        await repositories.clearAllData();
 
-        // Clear data from providers
+        // Clear data from providers and re-seed default categories
         if (context.mounted) {
           final categoryProvider =
               Provider.of<CategoryProvider>(context, listen: false);
@@ -149,9 +151,10 @@ class _DashboardTabState extends State<DashboardTab> {
               Provider.of<TransactionProvider>(context, listen: false);
           final budgetProvider =
               Provider.of<BudgetProvider>(context, listen: false);
-          await categoryProvider.clearAllData();
           await transactionProvider.clearAllData();
           await budgetProvider.clearAllData();
+          await categoryProvider.clearAllData();
+          await categoryProvider.initializeDefaultCategories();
         }
 
         // Close loading dialog
