@@ -5,7 +5,9 @@ import 'add_budget_screen.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../models/budget.dart';
+import '../../utils/currency.dart';
 import '../../widgets/logo_widget.dart';
 
 class BudgetListScreen extends StatefulWidget {
@@ -108,6 +110,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final symbol = context.watch<SettingsController>().currencySymbol;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Budgets'),
@@ -290,14 +293,14 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Spent: R${spentAmount.toStringAsFixed(2)}',
+                                        'Spent: ${CurrencyFormatter.format(symbol, spentAmount)}',
                                         style: TextStyle(
                                           color: isOverBudget ? Colors.red : Colors.grey[700],
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                       Text(
-                                        'Budget: R${budget.amount.toStringAsFixed(2)}',
+                                        'Budget: ${CurrencyFormatter.format(symbol, budget.amount)}',
                                         style: TextStyle(
                                           color: Colors.grey[700],
                                           fontWeight: FontWeight.w500,
@@ -316,8 +319,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                                   const SizedBox(height: 8),
                                   Text(
                                     isOverBudget
-                                        ? 'Over budget by R${(-remainingAmount).toStringAsFixed(2)}'
-                                        : 'Remaining: R${remainingAmount.toStringAsFixed(2)}',
+                                        ? 'Over budget by ${CurrencyFormatter.format(symbol, -remainingAmount)}'
+                                        : 'Remaining: ${CurrencyFormatter.format(symbol, remainingAmount)}',
                                     style: TextStyle(
                                       color: isOverBudget ? Colors.red : Colors.green,
                                       fontSize: 12,

@@ -4,6 +4,7 @@ import 'screens/home_screen.dart';
 import 'providers/category_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/budget_provider.dart';
+import 'providers/settings_provider.dart';
 import 'database/app_database.dart';
 import 'repositories/repositories.dart';
 import 'repositories/drift_repositories.dart';
@@ -11,22 +12,53 @@ import 'repositories/drift_repositories.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final settings = await SettingsController.load();
+
   final database = AppDatabase();
   final repositories = DriftRepositories(database);
 
-  runApp(SmartSpenderApp(repositories: repositories));
+  runApp(SmartSpenderApp(repositories: repositories, settings: settings));
 }
 
 class SmartSpenderApp extends StatelessWidget {
-  const SmartSpenderApp({super.key, required this.repositories});
+  const SmartSpenderApp({
+    super.key,
+    required this.repositories,
+    required this.settings,
+  });
 
   final AppRepositories repositories;
+  final SettingsController settings;
+
+  ThemeData _buildTheme(Brightness brightness) {
+    return ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.green,
+        brightness: brightness,
+      ),
+      useMaterial3: true,
+      appBarTheme: const AppBarTheme(
+        centerTitle: true,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        elevation: 4,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         Provider<AppRepositories>.value(value: repositories),
+        ChangeNotifierProvider<SettingsController>.value(value: settings),
         ChangeNotifierProvider(
             create: (_) => CategoryProvider(repositories.categories)),
         ChangeNotifierProvider(
@@ -34,27 +66,15 @@ class SmartSpenderApp extends StatelessWidget {
         ChangeNotifierProvider(
             create: (_) => BudgetProvider(repositories.budgets)),
       ],
-      child: MaterialApp(
-        title: 'SmartSpender',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-          useMaterial3: true,
-          appBarTheme: const AppBarTheme(
-            centerTitle: true,
-            elevation: 0,
-          ),
-          cardTheme: CardThemeData(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          floatingActionButtonTheme: const FloatingActionButtonThemeData(
-            elevation: 4,
-          ),
+      child: Consumer<SettingsController>(
+        builder: (context, settings, _) => MaterialApp(
+          title: 'SmartSpender',
+          theme: _buildTheme(Brightness.light),
+          darkTheme: _buildTheme(Brightness.dark),
+          themeMode: settings.themeMode,
+          home: const AppInitializer(),
+          debugShowCheckedModeBanner: false,
         ),
-        home: const AppInitializer(),
-        debugShowCheckedModeBanner: false,
       ),
     );
   }

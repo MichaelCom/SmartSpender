@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../models/transaction.dart' as model;
+import '../../utils/currency.dart';
 import 'add_transaction_screen.dart';
 import '../../widgets/logo_widget.dart';
 
@@ -144,6 +146,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final symbol = context.watch<SettingsController>().currencySymbol;
     return Scaffold(
       appBar: AppBar(
         title: const LogoWidget(width: 100, height: 100),
@@ -230,7 +233,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  'R${NumberFormat('#,##0.00').format(transactionProvider.totalIncome)}',
+                                  CurrencyFormatter.format(
+                                    symbol,
+                                    transactionProvider.totalIncome,
+                                  ),
                                   style: TextStyle(
                                     color: Colors.green[700],
                                     fontSize: 14,
@@ -263,7 +269,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  'R${NumberFormat('#,##0.00').format(transactionProvider.totalExpenses)}',
+                                  CurrencyFormatter.format(
+                                    symbol,
+                                    transactionProvider.totalExpenses,
+                                  ),
                                   style: TextStyle(
                                     color: Colors.red[700],
                                     fontSize: 14,
@@ -300,7 +309,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  'R${NumberFormat('#,##0.00').format(transactionProvider.balance)}',
+                                  CurrencyFormatter.format(
+                                    symbol,
+                                    transactionProvider.balance,
+                                  ),
                                   style: TextStyle(
                                     color: transactionProvider.balance >= 0
                                         ? Colors.blue[700]
@@ -452,7 +464,11 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    '${transaction.type == 'income' ? '+' : '-'}R${NumberFormat('#,##0.00').format(transaction.amount)}',
+                                    CurrencyFormatter.formatSigned(
+                                      symbol,
+                                      transaction.amount,
+                                      isIncome: transaction.type == 'income',
+                                    ),
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,

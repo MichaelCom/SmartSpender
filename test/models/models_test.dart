@@ -38,7 +38,7 @@ void main() {
       expect(tx.formattedAmount, '12.50');
     });
 
-    test('displayAmount prefixes sign and currency', () {
+    test('formattedAmount keeps two decimals for whole and fractional', () {
       final income = Transaction(
         amount: 100,
         categoryId: 1,
@@ -54,8 +54,8 @@ void main() {
         createdAt: DateTime(2024, 1, 1),
       );
 
-      expect(income.displayAmount, '+R100.00');
-      expect(expense.displayAmount, '-R100.00');
+      expect(income.formattedAmount, '100.00');
+      expect(expense.formattedAmount, '100.00');
     });
 
     test('copyWith overrides only provided fields', () {
@@ -132,8 +132,8 @@ void main() {
       expect(budget.isYearly, isFalse);
     });
 
-    test('displayAmount formats currency', () {
-      expect(budget.displayAmount, 'R1000.00');
+    test('formattedAmount formats amount', () {
+      expect(budget.formattedAmount, '1000.00');
     });
 
     test('isActive is true only within the window', () {

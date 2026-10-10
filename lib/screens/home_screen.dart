@@ -6,9 +6,12 @@ import 'transactions/add_transaction_screen.dart';
 import 'categories/category_list_screen.dart';
 import 'budgets/budget_list_screen.dart';
 import 'reports/reports_screen.dart';
+import 'settings/settings_screen.dart';
 import '../providers/category_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/settings_provider.dart';
+import '../utils/currency.dart';
 import '../repositories/repositories.dart';
 import '../widgets/logo_widget.dart';
 import '../widgets/demo_data_widget.dart';
@@ -211,6 +214,17 @@ class _DashboardTabState extends State<DashboardTab> {
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+          ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
@@ -273,6 +287,7 @@ class _DashboardTabState extends State<DashboardTab> {
             now,
           );
           final balance = currentMonthIncome - currentMonthExpenses;
+          final symbol = context.watch<SettingsController>().currencySymbol;
           final savingsPercentage = currentMonthIncome > 0
               ? ((balance / currentMonthIncome) * 100).round()
               : 0;
@@ -324,7 +339,8 @@ class _DashboardTabState extends State<DashboardTab> {
                             Expanded(
                               child: _buildFinancialCard(
                                 'Total Income',
-                                'R${NumberFormat('#,##0.00').format(currentMonthIncome)}',
+                                CurrencyFormatter.format(
+                                    symbol, currentMonthIncome),
                                 Icons.trending_up,
                                 Colors.green,
                               ),
@@ -333,7 +349,8 @@ class _DashboardTabState extends State<DashboardTab> {
                             Expanded(
                               child: _buildFinancialCard(
                                 'Total Expenses',
-                                'R${NumberFormat('#,##0.00').format(currentMonthExpenses)}',
+                                CurrencyFormatter.format(
+                                    symbol, currentMonthExpenses),
                                 Icons.trending_down,
                                 Colors.red,
                               ),
@@ -390,7 +407,7 @@ class _DashboardTabState extends State<DashboardTab> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'R${NumberFormat('#,##0.00').format(balance.abs())}',
+                                CurrencyFormatter.format(symbol, balance.abs()),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 32,
@@ -490,7 +507,8 @@ class _DashboardTabState extends State<DashboardTab> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildTopCategoriesList(transactionProvider, categoryProvider),
+                _buildTopCategoriesList(
+                    transactionProvider, categoryProvider, symbol),
                 const SizedBox(height: 24),
 
                 // Monthly Breakdown
@@ -503,6 +521,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   currentMonthIncome,
                   currentMonthExpenses,
                   balance,
+                  symbol,
                 ),
               ],
             ),
@@ -646,6 +665,7 @@ class _DashboardTabState extends State<DashboardTab> {
   Widget _buildTopCategoriesList(
     TransactionProvider transactionProvider,
     CategoryProvider categoryProvider,
+    String symbol,
   ) {
     // Get category spending summary
     final categorySpending = transactionProvider.getCategoryExpenseSummary();
@@ -703,7 +723,7 @@ class _DashboardTabState extends State<DashboardTab> {
             ),
             title: Text(category?.name ?? 'Unknown Category'),
             trailing: Text(
-              'R${NumberFormat('#,##0.00').format(entry.value)}',
+              CurrencyFormatter.format(symbol, entry.value),
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.red,
@@ -719,6 +739,7 @@ class _DashboardTabState extends State<DashboardTab> {
     double income,
     double expenses,
     double balance,
+    String symbol,
   ) {
     final progressValue = income > 0
         ? (expenses / income).clamp(0.0, 1.0)
@@ -760,13 +781,13 @@ class _DashboardTabState extends State<DashboardTab> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Spent: R${NumberFormat('#,##0.00').format(expenses)}',
+                  'Spent: ${CurrencyFormatter.format(symbol, expenses)}',
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 Text(
                   balance >= 0
-                      ? 'Remaining: R${NumberFormat('#,##0.00').format(balance)}'
-                      : 'Over: R${NumberFormat('#,##0.00').format(balance.abs())}',
+                      ? 'Remaining: ${CurrencyFormatter.format(symbol, balance)}'
+                      : 'Over: ${CurrencyFormatter.format(symbol, balance.abs())}',
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],

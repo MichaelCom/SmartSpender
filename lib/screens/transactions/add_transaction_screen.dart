@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/transaction.dart' as model;
 import '../../providers/transaction_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/settings_provider.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final model.Transaction?
@@ -169,6 +170,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final symbol = context.watch<SettingsController>().currencySymbol;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.transaction == null ? 'Add Transaction' : 'Edit Transaction'),
@@ -238,7 +240,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   _selectedType == 'income' ? Icons.add : Icons.remove,
                   color: _selectedType == 'income' ? Colors.green : Colors.red,
                 ),
-                prefixText: 'R',
+                prefixText: symbol,
               ),
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
@@ -455,7 +457,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    '${_selectedType == 'income' ? '+' : '-'}R${_amountController.text.isEmpty ? '0.00' : _amountController.text}',
+                                    '${_selectedType == 'income' ? '+' : '-'}$symbol${_amountController.text.isEmpty ? '0.00' : _amountController.text}',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,

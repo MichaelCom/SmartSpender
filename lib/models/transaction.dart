@@ -90,10 +90,9 @@ class Transaction {
 
   String get formattedAmount => amount.toStringAsFixed(2);
 
-  String get displayAmount {
-    final prefix = isIncome ? '+' : '-';
-    return '${prefix}R$formattedAmount';
-  }
+  // NOTE: Currency formatting is intentionally NOT done here. Domain models must
+  // not read settings. Screens format via CurrencyFormatter.formatSigned(...)
+  // using the symbol from SettingsController.currencySymbol.
 
   /// Human-friendly category label, falling back to "Uncategorised".
   String get displayCategoryName => categoryName ?? 'Uncategorised';

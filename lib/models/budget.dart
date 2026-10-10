@@ -95,7 +95,9 @@ class Budget {
 
   String get formattedAmount => amount.toStringAsFixed(2);
 
-  String get displayAmount => 'R$formattedAmount';
+  // NOTE: Currency formatting is intentionally NOT done here. Domain models must
+  // not read settings. Screens format via CurrencyFormatter.format(...) using
+  // the symbol from SettingsController.currencySymbol.
 
   bool get isActive {
     final now = DateTime.now();
