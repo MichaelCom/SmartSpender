@@ -137,7 +137,7 @@ class Budget extends HiveObject {
   }
   
   String get displayAmount {
-    return 'R${formattedAmount}';
+    return 'R$formattedAmount';
   }
 
   bool get isActive {

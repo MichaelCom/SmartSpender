@@ -188,33 +188,29 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: const Text('Income'),
-                    value: 'income',
-                    groupValue: _selectedType,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedType = value!;
-                      });
-                    },
+            RadioGroup<String>(
+              groupValue: _selectedType,
+              onChanged: (value) {
+                setState(() {
+                  _selectedType = value!;
+                });
+              },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('Income'),
+                      value: 'income',
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: const Text('Expense'),
-                    value: 'expense',
-                    groupValue: _selectedType,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedType = value!;
-                      });
-                    },
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('Expense'),
+                      value: 'expense',
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             
             const SizedBox(height: 24),

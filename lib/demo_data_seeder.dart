@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'database/hive_helper.dart';
 import 'models/category.dart';
 import 'models/transaction.dart';
@@ -223,19 +224,19 @@ class DemoDataSeeder {
   };
 
   Future<void> seedDemoData() async {
-    print('🗑️ Clearing existing data...');
+    debugPrint('🗑️ Clearing existing data...');
     await HiveHelper.clearAllData();
 
-    print('📂 Creating categories...');
+    debugPrint('📂 Creating categories...');
     final categoryKeys = await _createCategories();
 
-    print('💰 Creating transactions...');
+    debugPrint('💰 Creating transactions...');
     await _createTransactions(categoryKeys);
 
-    print('📊 Creating budgets...');
+    debugPrint('📊 Creating budgets...');
     await _createBudgets(categoryKeys);
 
-    print('✅ Demo data seeding completed!');
+    debugPrint('✅ Demo data seeding completed!');
   }
 
   Future<Map<String, List<int>>> _createCategories() async {
@@ -324,7 +325,7 @@ class DemoDataSeeder {
       await HiveHelper.insertTransaction(transaction);
     }
 
-    print('   Created ${transactions.length} transactions');
+    debugPrint('   Created ${transactions.length} transactions');
   }
 
   Future<void> _createBudgets(Map<String, List<int>> categoryKeys) async {
@@ -381,7 +382,7 @@ class DemoDataSeeder {
       await HiveHelper.insertBudget(budget);
     }
 
-    print('   Created ${budgets.length} budgets');
+    debugPrint('   Created ${budgets.length} budgets');
   }
 
   double _generateIncomeAmount(String categoryName) {

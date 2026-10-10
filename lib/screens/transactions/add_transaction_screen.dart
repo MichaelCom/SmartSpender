@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/transaction.dart' as model;
-import '../../models/category.dart' as model;
 import '../../providers/transaction_provider.dart';
 import '../../providers/category_provider.dart';
 
@@ -201,35 +200,30 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: const Text('Income'),
-                    value: 'income',
-                    groupValue: _selectedType,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedType = value!;
-                        _selectedCategoryKey = null; // Reset category selection
-                      });
-                    },
+            RadioGroup<String>(
+              groupValue: _selectedType,
+              onChanged: (value) {
+                setState(() {
+                  _selectedType = value!;
+                  _selectedCategoryKey = null; // Reset category selection
+                });
+              },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('Income'),
+                      value: 'income',
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: const Text('Expense'),
-                    value: 'expense',
-                    groupValue: _selectedType,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedType = value!;
-                        _selectedCategoryKey = null; // Reset category selection
-                      });
-                    },
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('Expense'),
+                      value: 'expense',
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
 
             const SizedBox(height: 24),
@@ -244,7 +238,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   _selectedType == 'income' ? Icons.add : Icons.remove,
                   color: _selectedType == 'income' ? Colors.green : Colors.red,
                 ),
-                prefixText: '\R',
+                prefixText: 'R',
               ),
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
@@ -297,7 +291,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'No ${_selectedType} categories found',
+                                'No $_selectedType categories found',
                                 style: const TextStyle(fontSize: 16),
                               ),
                               const SizedBox(height: 4),
@@ -347,7 +341,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             },
                           ),
                         );
-                      }).toList(),
+                      }),
                   ],
                 );
               },

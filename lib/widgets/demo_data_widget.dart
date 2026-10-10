@@ -6,7 +6,7 @@ import '../providers/transaction_provider.dart';
 import '../providers/budget_provider.dart';
 
 class DemoDataWidget extends StatefulWidget {
-  const DemoDataWidget({Key? key}) : super(key: key);
+  const DemoDataWidget({super.key});
 
   @override
   State<DemoDataWidget> createState() => _DemoDataWidgetState();
@@ -26,15 +26,15 @@ class _DemoDataWidgetState extends State<DemoDataWidget> {
 
       // Refresh all providers to show the new data
       if (mounted) {
-        await Provider.of<CategoryProvider>(
-          context,
-          listen: false,
-        ).loadCategories();
-        await Provider.of<TransactionProvider>(
-          context,
-          listen: false,
-        ).loadTransactions();
-        await Provider.of<BudgetProvider>(context, listen: false).loadBudgets();
+        final categoryProvider =
+            Provider.of<CategoryProvider>(context, listen: false);
+        final transactionProvider =
+            Provider.of<TransactionProvider>(context, listen: false);
+        final budgetProvider =
+            Provider.of<BudgetProvider>(context, listen: false);
+        await categoryProvider.loadCategories();
+        await transactionProvider.loadTransactions();
+        await budgetProvider.loadBudgets();
       }
 
       if (mounted) {

@@ -131,7 +131,7 @@ class Transaction extends HiveObject {
   
   String get displayAmount {
     final prefix = isIncome ? '+' : '-';
-    return '${prefix}R${formattedAmount}';
+    return '${prefix}R$formattedAmount';
   }
 
   // Get the ID (Hive key) for compatibility

@@ -378,7 +378,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                               ? 'No transactions found for "$_searchQuery"'
                               : _selectedFilter == 'all'
                               ? 'No transactions found'
-                              : 'No ${_selectedFilter} transactions found',
+                              : 'No $_selectedFilter transactions found',
                           style: const TextStyle(fontSize: 18),
                         ),
                         const SizedBox(height: 8),
@@ -556,7 +556,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               builder: (context) => const AddTransactionScreen(),
             ),
           );
-          if (result == true) {
+          if (result == true && context.mounted) {
             // Transaction was added, refresh the list
             Provider.of<TransactionProvider>(
               context,

@@ -143,18 +143,15 @@ class _DashboardTabState extends State<DashboardTab> {
 
         // Clear data from providers
         if (context.mounted) {
-          await Provider.of<CategoryProvider>(
-            context,
-            listen: false,
-          ).clearAllData();
-          await Provider.of<TransactionProvider>(
-            context,
-            listen: false,
-          ).clearAllData();
-          await Provider.of<BudgetProvider>(
-            context,
-            listen: false,
-          ).clearAllData();
+          final categoryProvider =
+              Provider.of<CategoryProvider>(context, listen: false);
+          final transactionProvider =
+              Provider.of<TransactionProvider>(context, listen: false);
+          final budgetProvider =
+              Provider.of<BudgetProvider>(context, listen: false);
+          await categoryProvider.clearAllData();
+          await transactionProvider.clearAllData();
+          await budgetProvider.clearAllData();
         }
 
         // Close loading dialog
@@ -362,7 +359,7 @@ class _DashboardTabState extends State<DashboardTab> {
                               BoxShadow(
                                 color:
                                     (balance >= 0 ? Colors.blue : Colors.orange)
-                                        .withOpacity(0.3),
+                                        .withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -404,7 +401,7 @@ class _DashboardTabState extends State<DashboardTab> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -463,7 +460,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Top Expense Categories',
+                      'Top Expense  jCategories',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     TextButton(
@@ -577,9 +574,9 @@ class _DashboardTabState extends State<DashboardTab> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -689,8 +686,8 @@ class _DashboardTabState extends State<DashboardTab> {
           return ListTile(
             leading: CircleAvatar(
               backgroundColor: category != null
-                  ? _hexToColor(category.color ?? '#FF6B6B').withOpacity(0.1)
-                  : Colors.grey.withOpacity(0.1),
+                  ? _hexToColor(category.color ?? '#FF6B6B').withValues(alpha: 0.1)
+                  : Colors.grey.withValues(alpha: 0.1),
               child: Icon(
                 category != null
                     ? _getIconData(category.icon ?? 'category')
@@ -750,7 +747,7 @@ class _DashboardTabState extends State<DashboardTab> {
             const SizedBox(height: 12),
             LinearProgressIndicator(
               value: progressValue,
-              backgroundColor: Colors.green.withOpacity(0.2),
+              backgroundColor: Colors.green.withValues(alpha: 0.2),
               valueColor: AlwaysStoppedAnimation<Color>(
                 progressValue > 1.0 ? Colors.red : Colors.orange,
               ),

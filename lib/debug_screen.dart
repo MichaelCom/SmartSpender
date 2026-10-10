@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'database/hive_helper.dart';
-import 'models/category.dart';
-import 'models/transaction.dart';
-import 'models/budget.dart';
 
 class DebugScreen extends StatefulWidget {
   const DebugScreen({super.key});

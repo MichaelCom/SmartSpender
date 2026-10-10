@@ -145,6 +145,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         success = await budgetProvider.updateBudget(updatedBudget);
       }
 
+      if (!mounted) return;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -166,6 +167,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
@@ -213,7 +215,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             children: [
               // Header Card
               Card(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -268,7 +270,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                               : categoryProvider.expenseCategories;
                           
                           return DropdownButtonFormField<Category>(
-                            value: _selectedCategory,
+                            initialValue: _selectedCategory,
                             decoration: const InputDecoration(
                               border: OutlineInputBorder(),
                               prefixIcon: Icon(Icons.category),
@@ -360,7 +362,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _selectedPeriod,
+                        initialValue: _selectedPeriod,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.schedule),

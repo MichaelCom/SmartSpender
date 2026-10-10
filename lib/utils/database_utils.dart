@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../database/hive_helper.dart';
 
 class DatabaseUtils {
@@ -23,9 +24,9 @@ class DatabaseUtils {
       // Clear all existing data
       await HiveHelper.clearAllData();
       
-      print('Database reset successfully');
+      debugPrint('Database reset successfully');
     } catch (e) {
-      print('Error resetting database: $e');
+      debugPrint('Error resetting database: $e');
       rethrow;
     }
   }

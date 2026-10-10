@@ -196,7 +196,7 @@ class CategoryProvider with ChangeNotifier {
     _clearError();
     
     try {
-      await HiveHelper.clearAllData();
+      // Persistence is wiped by DatabaseUtils; only reset in-memory state here.
       _categories.clear();
       notifyListeners();
     } catch (e) {

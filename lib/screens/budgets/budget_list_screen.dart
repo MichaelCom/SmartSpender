@@ -41,6 +41,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
         transactionProvider.loadTransactions(),
       ]);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error loading data: $e'),
@@ -74,6 +75,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
     );
 
     if (confirmed == true && budget.key != null) {
+      if (!mounted) return;
       final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
       final success = await budgetProvider.deleteBudget(budget.key!);
       
@@ -201,8 +203,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                                     height: 40,
                                     decoration: BoxDecoration(
                                       color: isOverBudget 
-                                          ? Colors.red.withOpacity(0.1)
-                                          : Colors.blue.withOpacity(0.1),
+                                          ? Colors.red.withValues(alpha: 0.1)
+                                          : Colors.blue.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Center(

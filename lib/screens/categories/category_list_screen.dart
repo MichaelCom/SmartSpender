@@ -185,7 +185,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                   Text(
                     _selectedFilter == 'all'
                         ? 'No categories found'
-                        : 'No ${_selectedFilter} categories found',
+                        : 'No $_selectedFilter categories found',
                     style: const TextStyle(fontSize: 18),
                   ),
                   const SizedBox(height: 8),
@@ -293,7 +293,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           final result = await Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => const AddCategoryScreen()),
           );
-          if (result == true) {
+          if (result == true && context.mounted) {
             // Category was added, refresh the list
             Provider.of<CategoryProvider>(
               context,
