@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/settings_provider.dart';
 import '../../utils/currency.dart';
+import 'data_management_section.dart';
 
 /// Settings screen: Appearance (theme mode) and Currency (display symbol).
 ///
@@ -61,6 +62,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
             ),
           ),
+          const Divider(),
+          const DataManagementSection(),
         ],
       ),
     );
