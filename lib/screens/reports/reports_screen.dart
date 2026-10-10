@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/category_provider.dart';
@@ -165,7 +164,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                           Expanded(
                             child: _buildSummaryCard(
                               'Income',
-                              '\R${totalIncome.toStringAsFixed(2)}',
+                              'R${totalIncome.toStringAsFixed(2)}',
                               Icons.trending_up,
                               Colors.green,
                             ),
@@ -174,7 +173,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                           Expanded(
                             child: _buildSummaryCard(
                               'Expenses',
-                              '\R${totalExpenses.toStringAsFixed(2)}',
+                              'R${totalExpenses.toStringAsFixed(2)}',
                               Icons.trending_down,
                               Colors.red,
                             ),
@@ -187,7 +186,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                           Expanded(
                             child: _buildSummaryCard(
                               'Balance',
-                              '\R${balance.toStringAsFixed(2)}',
+                              'R${balance.toStringAsFixed(2)}',
                               balance >= 0
                                   ? Icons.account_balance_wallet
                                   : Icons.warning,
@@ -235,16 +234,16 @@ class _ReportsScreenState extends State<ReportsScreen>
                       _buildStatRow(
                         'Average Transaction',
                         transactions.isNotEmpty
-                            ? '\R${(transactions.fold(0.0, (sum, t) => sum + t.amount) / transactions.length).toStringAsFixed(2)}'
-                            : '\R0.00',
+                            ? 'R${(transactions.fold(0.0, (sum, t) => sum + t.amount) / transactions.length).toStringAsFixed(2)}'
+                            : 'R0.00',
                       ),
                       _buildStatRow(
                         'Largest Expense',
                         transactions
                                 .where((t) => t.type == 'expense')
                                 .isNotEmpty
-                            ? '\R${transactions.where((t) => t.type == 'expense').map((t) => t.amount).reduce((a, b) => a > b ? a : b).toStringAsFixed(2)}'
-                            : '\R0.00',
+                            ? 'R${transactions.where((t) => t.type == 'expense').map((t) => t.amount).reduce((a, b) => a > b ? a : b).toStringAsFixed(2)}'
+                            : 'R0.00',
                       ),
                       _buildStatRow(
                         'Days Tracked',
@@ -424,11 +423,11 @@ class _ReportsScreenState extends State<ReportsScreen>
                               ),
                               Text('${percentage.toStringAsFixed(1)}%'),
                               const SizedBox(width: 8),
-                              Text('\R${entry.value.toStringAsFixed(2)}'),
+                              Text('R${entry.value.toStringAsFixed(2)}'),
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
@@ -508,8 +507,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('\R${spent.toStringAsFixed(2)} spent'),
-                          Text('\R${budget.amount.toStringAsFixed(2)} budget'),
+                          Text('R${spent.toStringAsFixed(2)} spent'),
+                          Text('R${budget.amount.toStringAsFixed(2)} budget'),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -523,8 +522,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                       const SizedBox(height: 4),
                       Text(
                         isOverBudget
-                            ? 'Over budget by \R${(spent - budget.amount).toStringAsFixed(2)}'
-                            : '\R${(budget.amount - spent).toStringAsFixed(2)} remaining',
+                            ? 'Over budget by R${(spent - budget.amount).toStringAsFixed(2)}'
+                            : 'R${(budget.amount - spent).toStringAsFixed(2)} remaining',
                         style: TextStyle(
                           fontSize: 12,
                           color: isOverBudget ? Colors.red : Colors.green,
@@ -550,9 +549,9 @@ class _ReportsScreenState extends State<ReportsScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -779,11 +778,13 @@ class _ReportsScreenState extends State<ReportsScreen>
   ) {
     final total = categorySpending.values.fold(0.0, (a, b) => a + b);
 
-    return PieChart(
-      PieChartData(
-        sections: categorySpending.entries.map((entry) {
+    // fl_chart 1.x asserts that PieChartSectionData.value is > 0, so filter out
+    // any zero/negative entries before building sections.
+    final sections = categorySpending.entries
+        .where((entry) => entry.value > 0)
+        .map((entry) {
           final category = categoryProvider.getCategoryById(entry.key);
-          final percentage = (entry.value / total * 100);
+          final percentage = total > 0 ? (entry.value / total * 100) : 0.0;
 
           return PieChartSectionData(
             color: category != null
@@ -798,7 +799,12 @@ class _ReportsScreenState extends State<ReportsScreen>
               color: Colors.white,
             ),
           );
-        }).toList(),
+        })
+        .toList();
+
+    return PieChart(
+      PieChartData(
+        sections: sections,
         centerSpaceRadius: 40,
         sectionsSpace: 2,
       ),
