@@ -63,6 +63,46 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const Divider(),
+          _SectionHeader(label: 'Budget alerts', context: context),
+          ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Alert threshold'),
+            subtitle: const Text(
+              'Warn when a budget reaches this percentage.',
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  tooltip: 'Decrease',
+                  onPressed: settings.budgetAlertThreshold > 1
+                      ? () => settings.setBudgetAlertThreshold(
+                            settings.budgetAlertThreshold - 5,
+                          )
+                      : null,
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    '${settings.budgetAlertThreshold}%',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  tooltip: 'Increase',
+                  onPressed: settings.budgetAlertThreshold < 100
+                      ? () => settings.setBudgetAlertThreshold(
+                            settings.budgetAlertThreshold + 5,
+                          )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
           const DataManagementSection(),
         ],
       ),

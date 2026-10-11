@@ -8,6 +8,7 @@ import '../../providers/transaction_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/budget.dart';
 import '../../utils/currency.dart';
+import '../../utils/budget_alerts.dart';
 import '../../widgets/logo_widget.dart';
 
 class BudgetListScreen extends StatefulWidget {
@@ -110,7 +111,9 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = context.watch<SettingsController>().currencySymbol;
+    final settings = context.watch<SettingsController>();
+    final symbol = settings.currencySymbol;
+    final threshold = settings.budgetAlertThreshold;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Budgets'),
@@ -187,9 +190,23 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                     itemBuilder: (context, index) {
                       final budget = budgets[index];
                       final spentAmount = _getSpentAmount(budget);
-                      final progress = budget.amount > 0 ? (spentAmount / budget.amount).clamp(0.0, 1.0) : 0.0;
-                      final isOverBudget = spentAmount > budget.amount;
+                      final status = BudgetAlerts.evaluate(
+                        spent: spentAmount,
+                        limit: budget.amount,
+                        thresholdPercent: threshold,
+                      );
+                      final progress = budget.amount > 0
+                          ? (spentAmount / budget.amount).clamp(0.0, 1.0)
+                          : 0.0;
+                      final isOverBudget = status.isExceeded;
+                      final isNearing = status.isNearing;
                       final remainingAmount = budget.amount - spentAmount;
+
+                      final Color accentColor = isOverBudget
+                          ? Colors.red
+                          : isNearing
+                              ? Colors.amber.shade800
+                              : Colors.blue;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -205,9 +222,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                                     width: 40,
                                     height: 40,
                                     decoration: BoxDecoration(
-                                      color: isOverBudget 
-                                          ? Colors.red.withValues(alpha: 0.1)
-                                          : Colors.blue.withValues(alpha: 0.1),
+                                      color: accentColor.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Center(
@@ -285,6 +300,49 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                               ),
                               const SizedBox(height: 16),
 
+                              // Status chip
+                              if (isOverBudget || isNearing)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            accentColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isOverBudget
+                                                ? Icons.error_outline
+                                                : Icons.warning_amber_rounded,
+                                            size: 16,
+                                            color: accentColor,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            isOverBudget
+                                                ? 'Over by ${CurrencyFormatter.format(symbol, status.overBy)}'
+                                                : 'Nearing limit',
+                                            style: TextStyle(
+                                              color: accentColor,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
                               // Progress Bar
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,7 +371,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                                     value: progress,
                                     backgroundColor: Colors.grey[300],
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      isOverBudget ? Colors.red : Colors.blue,
+                                      accentColor,
                                     ),
                                   ),
                                   const SizedBox(height: 8),

@@ -10,6 +10,7 @@ class Transaction {
   DateTime date;
   String type; // 'income' or 'expense'
   DateTime createdAt;
+  int? recurringId; // links to the recurring rule that generated this tx
 
   // Optional fields populated from joined queries (not persisted directly).
   String? categoryName;
@@ -24,6 +25,7 @@ class Transaction {
     required this.date,
     required this.type,
     required this.createdAt,
+    this.recurringId,
     this.categoryName,
     this.categoryIcon,
     this.categoryColor,
@@ -37,6 +39,7 @@ class Transaction {
     DateTime? date,
     String? type,
     DateTime? createdAt,
+    int? recurringId,
     String? categoryName,
     String? categoryIcon,
     String? categoryColor,
@@ -49,6 +52,7 @@ class Transaction {
       date: date ?? this.date,
       type: type ?? this.type,
       createdAt: createdAt ?? this.createdAt,
+      recurringId: recurringId ?? this.recurringId,
       categoryName: categoryName ?? this.categoryName,
       categoryIcon: categoryIcon ?? this.categoryIcon,
       categoryColor: categoryColor ?? this.categoryColor,

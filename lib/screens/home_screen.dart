@@ -6,6 +6,7 @@ import 'transactions/add_transaction_screen.dart';
 import 'categories/category_list_screen.dart';
 import 'budgets/budget_list_screen.dart';
 import 'reports/reports_screen.dart';
+import 'recurring/recurring_list_screen.dart';
 import 'settings/settings_screen.dart';
 import '../providers/category_provider.dart';
 import '../providers/transaction_provider.dart';
@@ -15,6 +16,7 @@ import '../utils/currency.dart';
 import '../repositories/repositories.dart';
 import '../widgets/logo_widget.dart';
 import '../widgets/demo_data_widget.dart';
+import '../widgets/budget_alert_summary.dart';
 import '../debug_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,26 +29,28 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const DashboardTab(),
-    const TransactionListScreen(),
-    const CategoryListScreen(),
-    const BudgetListScreen(),
-    const ReportsScreen(),
-  ];
+  void _selectTab(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final screens = <Widget>[
+      DashboardTab(onSelectTab: _selectTab),
+      const TransactionListScreen(),
+      const CategoryListScreen(),
+      const BudgetListScreen(),
+      const ReportsScreen(),
+    ];
+
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        onTap: _selectTab,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
@@ -75,7 +79,10 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class DashboardTab extends StatefulWidget {
-  const DashboardTab({super.key});
+  const DashboardTab({super.key, this.onSelectTab});
+
+  /// Switches the host [HomeScreen] bottom navigation to the given tab index.
+  final ValueChanged<int>? onSelectTab;
 
   @override
   State<DashboardTab> createState() => _DashboardTabState();
@@ -238,6 +245,13 @@ class _DashboardTabState extends State<DashboardTab> {
                     ),
                   );
                   break;
+                case 'recurring':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const RecurringListScreen(),
+                    ),
+                  );
+                  break;
                 case 'clear_data':
                   await _clearAllData(context);
                   break;
@@ -251,6 +265,16 @@ class _DashboardTabState extends State<DashboardTab> {
                     Icon(Icons.refresh, size: 20),
                     SizedBox(width: 8),
                     Text('Refresh Data'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'recurring',
+                child: Row(
+                  children: [
+                    Icon(Icons.repeat, size: 20),
+                    SizedBox(width: 8),
+                    Text('Recurring'),
                   ],
                 ),
               ),
@@ -300,6 +324,11 @@ class _DashboardTabState extends State<DashboardTab> {
                 // Demo Data Widget for Testing
                 const DemoDataWidget(),
                 const SizedBox(height: 16),
+
+                // Budget alerts summary banner (renders nothing when all ok).
+                BudgetAlertSummary(
+                  onTap: () => widget.onSelectTab?.call(3),
+                ),
 
                 // Welcome Section
                 Card(

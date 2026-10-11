@@ -50,6 +50,15 @@ void main() {
     await tester.pumpWidget(buildApp());
     await tester.pumpAndSettle();
 
+    // The Data section lives at the bottom of a scrollable list; bring it into
+    // view before asserting.
+    await tester.scrollUntilVisible(
+      find.text('Data'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Data'), findsOneWidget);
     expect(find.text('Export backup (JSON)'), findsOneWidget);
     expect(find.text('Export transactions (CSV)'), findsOneWidget);
@@ -61,6 +70,13 @@ void main() {
     // We can't exercise the file picker headlessly, but we can at least verify
     // the restore tile is present and tappable without throwing on build.
     await tester.pumpWidget(buildApp());
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Replaces all current data'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Replaces all current data'), findsOneWidget);

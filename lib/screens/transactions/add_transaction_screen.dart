@@ -5,7 +5,10 @@ import 'package:intl/intl.dart';
 import '../../models/transaction.dart' as model;
 import '../../providers/transaction_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/budget_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../utils/currency.dart';
+import '../../utils/budget_alerts.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final model.Transaction?
@@ -115,9 +118,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       context,
       listen: false,
     );
+    final budgetProvider = Provider.of<BudgetProvider>(
+      context,
+      listen: false,
+    );
+    final settings = Provider.of<SettingsController>(
+      context,
+      listen: false,
+    );
+
+    final enteredAmount = double.parse(_amountController.text);
+    final enteredCategoryKey = _selectedCategoryKey!;
+    final enteredType = _selectedType;
+    final enteredDate = _selectedDate;
 
     final transaction = model.Transaction(
-      amount: double.parse(_amountController.text),
+      amount: enteredAmount,
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
@@ -141,9 +157,33 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     });
 
     if (success) {
+      // Ensure budget data is available for the warning check.
+      if (enteredType == 'expense') {
+        await budgetProvider.loadBudgets();
+      }
       if (mounted) {
+        // Non-blocking budget warning (expense with a category only).
+        final warning = enteredType == 'expense'
+            ? _buildBudgetWarning(
+                budgetProvider: budgetProvider,
+                transactionProvider: transactionProvider,
+                settings: settings,
+                categoryKey: enteredCategoryKey,
+                enteredDate: enteredDate,
+              )
+            : null;
+
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        if (warning != null) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(warning),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        messenger.showSnackBar(
           SnackBar(
             content: Text(
               widget.transaction == null
@@ -166,6 +206,50 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         );
       }
     }
+  }
+
+  /// Builds a heads-up message when the just-saved expense pushes an active
+  /// budget to [BudgetAlertLevel.nearing] or [BudgetAlertLevel.exceeded], else
+  /// null. The transaction has already been persisted and the provider
+  /// reloaded, so [transactionProvider] already reflects the new spend.
+  String? _buildBudgetWarning({
+    required BudgetProvider budgetProvider,
+    required TransactionProvider transactionProvider,
+    required SettingsController settings,
+    required int categoryKey,
+    required DateTime enteredDate,
+  }) {
+    final budget = budgetProvider.getActiveBudgetForCategory(categoryKey);
+    if (budget == null) return null;
+
+    // Projected spent = all expenses for this category within the budget period
+    // (already includes the just-saved transaction after the provider reload).
+    final transactions =
+        transactionProvider.getTransactionsByCategory(categoryKey);
+    final projectedSpent = transactions.where((t) {
+      return t.type == 'expense' &&
+          t.date.isAfter(budget.startDate.subtract(const Duration(days: 1))) &&
+          t.date.isBefore(budget.endDate.add(const Duration(days: 1)));
+    }).fold(0.0, (sum, t) => sum + t.amount);
+
+    final status = BudgetAlerts.evaluate(
+      spent: projectedSpent,
+      limit: budget.amount,
+      thresholdPercent: settings.budgetAlertThreshold,
+    );
+
+    final name = budget.categoryName ?? 'this';
+    final symbol = settings.currencySymbol;
+    if (status.isExceeded) {
+      return 'Heads up: this puts your $name budget '
+          '${CurrencyFormatter.format(symbol, status.overBy)} over.';
+    }
+    if (status.isNearing) {
+      final remaining = budget.amount - projectedSpent;
+      return 'Heads up: your $name budget is nearing its limit '
+          '(${CurrencyFormatter.format(symbol, remaining)} left).';
+    }
+    return null;
   }
 
   @override

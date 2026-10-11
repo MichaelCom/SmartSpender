@@ -13,8 +13,10 @@ class SettingsController extends ChangeNotifier {
   SettingsController({
     required ThemeMode themeMode,
     required String currencyCode,
+    int budgetAlertThreshold = defaultBudgetAlertThreshold,
   })  : _themeMode = themeMode,
-        _currencyCode = currencyCode;
+        _currencyCode = currencyCode,
+        _budgetAlertThreshold = budgetAlertThreshold;
 
   /// SharedPreferences key for the persisted theme mode.
   static const String themeModeKey = 'settings.themeMode';
@@ -22,14 +24,22 @@ class SettingsController extends ChangeNotifier {
   /// SharedPreferences key for the persisted currency code.
   static const String currencyCodeKey = 'settings.currencyCode';
 
+  /// SharedPreferences key for the persisted budget-alert threshold (percent).
+  static const String budgetAlertThresholdKey =
+      'settings.budgetAlertThreshold';
+
   /// Default theme mode used when nothing is persisted.
   static const ThemeMode defaultThemeMode = ThemeMode.system;
 
   /// Default currency code used when nothing is persisted.
   static const String defaultCurrencyCode = 'ZAR';
 
+  /// Default budget-alert threshold (percent) used when nothing is persisted.
+  static const int defaultBudgetAlertThreshold = 80;
+
   ThemeMode _themeMode;
   String _currencyCode;
+  int _budgetAlertThreshold;
 
   // --- Theme ---
 
@@ -64,6 +74,23 @@ class SettingsController extends ChangeNotifier {
   /// Delegates to [AppCurrencies.symbolFor].
   String get currencySymbol => AppCurrencies.symbolFor(_currencyCode);
 
+  // --- Budget alerts ---
+
+  /// The "nearing" boundary percentage (1..100) at which a budget is flagged.
+  /// Default: 80.
+  int get budgetAlertThreshold => _budgetAlertThreshold;
+
+  /// Updates the budget-alert threshold (clamped to 1..100), persists it, and
+  /// notifies listeners. No-ops when the clamped value is unchanged.
+  Future<void> setBudgetAlertThreshold(int percent) async {
+    final clamped = percent.clamp(1, 100);
+    if (_budgetAlertThreshold == clamped) return;
+    _budgetAlertThreshold = clamped;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(budgetAlertThresholdKey, clamped);
+  }
+
   /// Async factory that reads [SharedPreferences] and returns a ready instance.
   ///
   /// Falls back to defaults ([ThemeMode.system], `'ZAR'`) if unset or invalid.
@@ -72,9 +99,13 @@ class SettingsController extends ChangeNotifier {
     final themeMode =
         _themeModeFromString(prefs.getString(themeModeKey)) ?? defaultThemeMode;
     final currencyCode = prefs.getString(currencyCodeKey) ?? defaultCurrencyCode;
+    final budgetAlertThreshold =
+        (prefs.getInt(budgetAlertThresholdKey) ?? defaultBudgetAlertThreshold)
+            .clamp(1, 100);
     return SettingsController(
       themeMode: themeMode,
       currencyCode: currencyCode,
+      budgetAlertThreshold: budgetAlertThreshold,
     );
   }
 

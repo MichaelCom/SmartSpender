@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../database/app_database.dart';
 import '../models/budget.dart';
 import '../models/category.dart';
+import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
 import 'repositories.dart';
 
@@ -11,7 +12,8 @@ class DriftRepositories implements AppRepositories {
   DriftRepositories(this._db)
       : categories = _DriftCategoryRepository(_db),
         transactions = _DriftTransactionRepository(_db),
-        budgets = _DriftBudgetRepository(_db);
+        budgets = _DriftBudgetRepository(_db),
+        recurring = _DriftRecurringTransactionRepository(_db);
 
   final AppDatabase _db;
 
@@ -21,6 +23,8 @@ class DriftRepositories implements AppRepositories {
   final TransactionRepository transactions;
   @override
   final BudgetRepository budgets;
+  @override
+  final RecurringTransactionRepository recurring;
 
   @override
   Future<void> clearAllData() async {
@@ -30,6 +34,7 @@ class DriftRepositories implements AppRepositories {
       // first to be explicit and avoid surprises.
       await _db.delete(_db.budgets).go();
       await _db.delete(_db.transactions).go();
+      await _db.delete(_db.recurringTransactions).go();
       await _db.delete(_db.categories).go();
     });
   }
@@ -57,6 +62,7 @@ Transaction _toTransaction(TransactionRow r, {CategoryRow? category}) =>
       date: r.date,
       type: r.type,
       createdAt: r.createdAt,
+      recurringId: r.recurringId,
       categoryName: category?.name,
       categoryIcon: category?.icon,
       categoryColor: category?.color,
@@ -76,6 +82,23 @@ Budget _toBudget(BudgetRow r, {CategoryRow? category}) => Budget(
       categoryColor: category?.color,
     );
 
+RecurringTransaction _toRecurring(RecurringTransactionRow r,
+        {CategoryRow? category}) =>
+    RecurringTransaction(
+      id: r.id,
+      amount: r.amount,
+      description: r.description,
+      categoryId: r.categoryId,
+      type: r.type,
+      frequency: r.frequency,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      lastGeneratedDate: r.lastGeneratedDate,
+      createdAt: r.createdAt,
+      categoryName: category?.name,
+      categoryIcon: category?.icon,
+      categoryColor: category?.color,
+    );
 // ---------------------------------------------------------------------------
 // Category repository
 // ---------------------------------------------------------------------------
@@ -207,6 +230,7 @@ class _DriftTransactionRepository implements TransactionRepository {
             date: transaction.date,
             type: transaction.type,
             createdAt: transaction.createdAt,
+            recurringId: Value(transaction.recurringId),
           ),
         );
   }
@@ -223,6 +247,7 @@ class _DriftTransactionRepository implements TransactionRepository {
         date: Value(transaction.date),
         type: Value(transaction.type),
         createdAt: Value(transaction.createdAt),
+        recurringId: Value(transaction.recurringId),
       ),
     );
   }
@@ -364,6 +389,87 @@ class _DriftBudgetRepository implements BudgetRepository {
   @override
   Future<void> delete(int id) async {
     await (_db.delete(_db.budgets)..where((b) => b.id.equals(id))).go();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Recurring transaction repository
+// ---------------------------------------------------------------------------
+
+class _DriftRecurringTransactionRepository
+    implements RecurringTransactionRepository {
+  _DriftRecurringTransactionRepository(this._db);
+  final AppDatabase _db;
+
+  Future<List<RecurringTransaction>> _selectJoined(
+      Expression<bool> Function($RecurringTransactionsTable r)?
+          filter) async {
+    final query = _db.select(_db.recurringTransactions).join([
+      leftOuterJoin(
+        _db.categories,
+        _db.categories.id.equalsExp(_db.recurringTransactions.categoryId),
+      ),
+    ]);
+    if (filter != null) {
+      query.where(filter(_db.recurringTransactions));
+    }
+    final rows = await query.get();
+    return rows.map((row) {
+      final r = row.readTable(_db.recurringTransactions);
+      final cat = row.readTableOrNull(_db.categories);
+      return _toRecurring(r, category: cat);
+    }).toList();
+  }
+
+  @override
+  Future<List<RecurringTransaction>> getAll() => _selectJoined(null);
+
+  @override
+  Future<RecurringTransaction?> getById(int id) async {
+    final result = await _selectJoined((r) => r.id.equals(id));
+    return result.isEmpty ? null : result.first;
+  }
+
+  @override
+  Future<int> insert(RecurringTransaction recurring) {
+    return _db.into(_db.recurringTransactions).insert(
+          RecurringTransactionsCompanion.insert(
+            amount: recurring.amount,
+            description: Value(recurring.description),
+            categoryId: Value(recurring.categoryId),
+            type: recurring.type,
+            frequency: recurring.frequency,
+            startDate: recurring.startDate,
+            endDate: Value(recurring.endDate),
+            lastGeneratedDate: Value(recurring.lastGeneratedDate),
+            createdAt: recurring.createdAt,
+          ),
+        );
+  }
+
+  @override
+  Future<void> update(RecurringTransaction recurring) async {
+    await (_db.update(_db.recurringTransactions)
+          ..where((r) => r.id.equals(recurring.id!)))
+        .write(
+      RecurringTransactionsCompanion(
+        amount: Value(recurring.amount),
+        description: Value(recurring.description),
+        categoryId: Value(recurring.categoryId),
+        type: Value(recurring.type),
+        frequency: Value(recurring.frequency),
+        startDate: Value(recurring.startDate),
+        endDate: Value(recurring.endDate),
+        lastGeneratedDate: Value(recurring.lastGeneratedDate),
+        createdAt: Value(recurring.createdAt),
+      ),
+    );
+  }
+
+  @override
+  Future<void> delete(int id) async {
+    await (_db.delete(_db.recurringTransactions)..where((r) => r.id.equals(id)))
+        .go();
   }
 }
 

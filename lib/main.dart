@@ -4,10 +4,12 @@ import 'screens/home_screen.dart';
 import 'providers/category_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/budget_provider.dart';
+import 'providers/recurring_provider.dart';
 import 'providers/settings_provider.dart';
 import 'database/app_database.dart';
 import 'repositories/repositories.dart';
 import 'repositories/drift_repositories.dart';
+import 'services/recurring_generator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +18,13 @@ void main() async {
 
   final database = AppDatabase();
   final repositories = DriftRepositories(database);
+
+  // Catch up any missed recurring transactions before the first frame.
+  try {
+    await RecurringGenerator(repositories).generateDue();
+  } catch (e) {
+    debugPrint('Recurring generation error: $e');
+  }
 
   runApp(SmartSpenderApp(repositories: repositories, settings: settings));
 }
@@ -65,6 +74,8 @@ class SmartSpenderApp extends StatelessWidget {
             create: (_) => TransactionProvider(repositories.transactions)),
         ChangeNotifierProvider(
             create: (_) => BudgetProvider(repositories.budgets)),
+        ChangeNotifierProvider(
+            create: (_) => RecurringProvider(repositories.recurring)),
       ],
       child: Consumer<SettingsController>(
         builder: (context, settings, _) => MaterialApp(

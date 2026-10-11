@@ -1,5 +1,6 @@
 import '../models/budget.dart';
 import '../models/category.dart';
+import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
 
 /// Abstractions over persistence. Providers depend on these interfaces, not on
@@ -41,12 +42,21 @@ abstract class BudgetRepository {
   Future<void> delete(int id);
 }
 
-/// Groups the three repositories together for easy injection and a single
+abstract class RecurringTransactionRepository {
+  Future<List<RecurringTransaction>> getAll();
+  Future<RecurringTransaction?> getById(int id);
+  Future<int> insert(RecurringTransaction recurring);
+  Future<void> update(RecurringTransaction recurring);
+  Future<void> delete(int id);
+}
+
+/// Groups the repositories together for easy injection and a single
 /// "clear everything" entry point.
 abstract class AppRepositories {
   CategoryRepository get categories;
   TransactionRepository get transactions;
   BudgetRepository get budgets;
+  RecurringTransactionRepository get recurring;
 
   Future<void> clearAllData();
 }
