@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +11,7 @@ import '../../providers/budget_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../utils/currency.dart';
 import '../../utils/budget_alerts.dart';
+import '../../services/insights/categorization_engine.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final model.Transaction?
@@ -30,6 +33,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
 
+  // Auto-categorization (A1): debounced suggestion computed from the
+  // description, shown only while no category has been chosen.
+  Timer? _suggestDebounce;
+  CategorySuggestion? _categorySuggestion;
+  static const Duration _suggestDelay = Duration(milliseconds: 400);
+
   @override
   void initState() {
     super.initState();
@@ -45,9 +54,52 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   void dispose() {
+    _suggestDebounce?.cancel();
     _amountController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  /// Debounced recompute of the category suggestion as the user types.
+  void _onDescriptionChanged(String _) {
+    _suggestDebounce?.cancel();
+    _suggestDebounce = Timer(_suggestDelay, _recomputeSuggestion);
+  }
+
+  /// Recomputes [_categorySuggestion] from the current description, using the
+  /// categories filtered to [_selectedType] and the user's transaction history.
+  void _recomputeSuggestion() {
+    if (!mounted) return;
+
+    // No suggestion needed once a category is chosen.
+    if (_selectedCategoryKey != null) {
+      if (_categorySuggestion != null) {
+        setState(() => _categorySuggestion = null);
+      }
+      return;
+    }
+
+    final categoryProvider = Provider.of<CategoryProvider>(
+      context,
+      listen: false,
+    );
+    final transactionProvider = Provider.of<TransactionProvider>(
+      context,
+      listen: false,
+    );
+    final categories = _selectedType == 'income'
+        ? categoryProvider.incomeCategories
+        : categoryProvider.expenseCategories;
+
+    final suggestion = CategorizationEngine.suggest(
+      description: _descriptionController.text,
+      categories: categories,
+      history: transactionProvider.transactions,
+      type: _selectedType,
+    );
+
+    if (!mounted) return;
+    setState(() => _categorySuggestion = suggestion);
   }
 
   Color _hexToColor(String hexString) {
@@ -252,6 +304,42 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return null;
   }
 
+  /// Builds the auto-categorization suggestion chip, or an empty widget when
+  /// there is nothing confident to suggest / a category is already chosen.
+  Widget _buildSuggestionChip() {
+    final suggestion = _categorySuggestion;
+    if (suggestion == null || _selectedCategoryKey != null) {
+      return const SizedBox.shrink();
+    }
+
+    final categoryProvider = Provider.of<CategoryProvider>(
+      context,
+      listen: false,
+    );
+    final category = categoryProvider.getCategoryById(suggestion.categoryId);
+    if (category == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Tooltip(
+          message: suggestion.reason,
+          child: ActionChip(
+            avatar: const Icon(Icons.auto_awesome, size: 18),
+            label: Text('Suggested: ${category.name}'),
+            onPressed: () {
+              setState(() {
+                _selectedCategoryKey = suggestion.categoryId;
+                _categorySuggestion = null;
+              });
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final symbol = context.watch<SettingsController>().currencySymbol;
@@ -292,7 +380,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 setState(() {
                   _selectedType = value!;
                   _selectedCategoryKey = null; // Reset category selection
+                  _categorySuggestion = null;
                 });
+                // Re-evaluate the suggestion for the new type.
+                _recomputeSuggestion();
               },
               child: Row(
                 children: [
@@ -423,6 +514,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             onTap: () {
                               setState(() {
                                 _selectedCategoryKey = category.key;
+                                // Chosen category clears the suggestion chip.
+                                _categorySuggestion = null;
                               });
                             },
                           ),
@@ -445,7 +538,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
               maxLines: 2,
               textCapitalization: TextCapitalization.sentences,
+              onChanged: _onDescriptionChanged,
             ),
+
+            // Auto-categorization suggestion chip (A1). Shown directly below
+            // the description, only when a suggestion exists AND no category
+            // has been chosen yet. Tapping it applies the suggested category.
+            _buildSuggestionChip(),
 
             const SizedBox(height: 16),
 

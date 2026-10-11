@@ -17,6 +17,7 @@ import '../repositories/repositories.dart';
 import '../widgets/logo_widget.dart';
 import '../widgets/demo_data_widget.dart';
 import '../widgets/budget_alert_summary.dart';
+import '../widgets/insight_highlight.dart';
 import '../debug_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -326,8 +327,16 @@ class _DashboardTabState extends State<DashboardTab> {
                 const SizedBox(height: 16),
 
                 // Budget alerts summary banner (renders nothing when all ok).
+                // Alerts are actionable and sit above the informational insight.
                 BudgetAlertSummary(
                   onTap: () => widget.onSelectTab?.call(3),
+                ),
+
+                // Top offline insight highlight (renders nothing when none).
+                // Tapping switches to the Reports tab (index 4), whose
+                // "Insights" tab shows the full list.
+                InsightHighlight(
+                  onTap: () => widget.onSelectTab?.call(4),
                 ),
 
                 // Welcome Section

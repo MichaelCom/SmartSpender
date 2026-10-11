@@ -5,10 +5,12 @@ import 'add_budget_screen.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/recurring_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/budget.dart';
 import '../../utils/currency.dart';
 import '../../utils/budget_alerts.dart';
+import '../../services/insights/forecast_engine.dart';
 import '../../widgets/logo_widget.dart';
 
 class BudgetListScreen extends StatefulWidget {
@@ -42,6 +44,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
         budgetProvider.loadBudgets(),
         categoryProvider.loadCategories(),
         transactionProvider.loadTransactions(),
+        Provider.of<RecurringProvider>(context, listen: false).loadRecurring(),
       ]);
     } catch (e) {
       if (!mounted) return;
@@ -107,6 +110,61 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
     });
     
     return relevantTransactions.fold(0.0, (sum, transaction) => sum + transaction.amount);
+  }
+
+  /// Builds the muted projection line for a budget card, or null when it should
+  /// be suppressed (fewer than 4 days of the month elapsed — run-rate is noise).
+  Widget? _buildProjectionLine(Budget budget, String symbol) {
+    final now = DateTime.now();
+    if (now.day < 4) return null;
+
+    final transactionProvider =
+        Provider.of<TransactionProvider>(context, listen: false);
+    final recurringProvider =
+        Provider.of<RecurringProvider>(context, listen: false);
+
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+    final monthTransactions = transactionProvider.transactions
+        .where((t) =>
+            !t.date.isBefore(monthStart) && !t.date.isAfter(monthEnd))
+        .toList();
+
+    final forecast = ForecastEngine.forecastBudget(
+      budget: budget,
+      monthTransactions: monthTransactions,
+      recurring: recurringProvider.recurring,
+      now: now,
+    );
+
+    final exceed = forecast.projectedToExceed;
+    final color = exceed ? Colors.amber.shade800 : Colors.grey[500];
+    final label = exceed
+        ? 'Projected: ${CurrencyFormatter.format(symbol, forecast.projectedTotal)} / '
+            '${CurrencyFormatter.format(symbol, budget.amount)} '
+            '(over by ${CurrencyFormatter.format(symbol, forecast.projectedOverBy)})'
+        : 'Projected: ${CurrencyFormatter.format(symbol, forecast.projectedTotal)} / '
+            '${CurrencyFormatter.format(symbol, budget.amount)}';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(Icons.insights_outlined, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: exceed ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -387,6 +445,10 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                                   ),
                                 ],
                               ),
+
+                              // Muted forecast projection line (suppressed in
+                              // the first few days of the month).
+                              ?_buildProjectionLine(budget, symbol),
 
                               // Description
                               if (budget.description != null && budget.description!.isNotEmpty) ...[

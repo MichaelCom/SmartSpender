@@ -6,6 +6,8 @@ import '../../providers/category_provider.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../utils/currency.dart';
+import '../../repositories/repositories.dart';
+import '../../services/insights/insights_engine.dart';
 import '../../widgets/logo_widget.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -25,7 +27,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _updateDateRange();
   }
 
@@ -111,6 +113,7 @@ class _ReportsScreenState extends State<ReportsScreen>
             Tab(icon: Icon(Icons.trending_up), text: 'Trends'),
             Tab(icon: Icon(Icons.category), text: 'Categories'),
             Tab(icon: Icon(Icons.assessment), text: 'Budget'),
+            Tab(icon: Icon(Icons.lightbulb_outline), text: 'Insights'),
           ],
         ),
       ),
@@ -121,9 +124,88 @@ class _ReportsScreenState extends State<ReportsScreen>
           _buildTrendsTab(),
           _buildCategoriesTab(),
           _buildBudgetTab(),
+          _buildInsightsTab(),
         ],
       ),
     );
+  }
+
+  Widget _buildInsightsTab() {
+    final symbol = context.watch<SettingsController>().currencySymbol;
+    final repositories = context.read<AppRepositories>();
+    return FutureBuilder<List<Insight>>(
+      future:
+          InsightsEngine(repositories).buildInsights(currencySymbol: symbol),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final insights = snapshot.data ?? const <Insight>[];
+        if (insights.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lightbulb_outline, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text('No insights yet'),
+                Text('Add more transactions to unlock insights'),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: insights.length,
+          itemBuilder: (context, index) {
+            final insight = insights[index];
+            final accent = _insightColor(insight.kind);
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: accent.withValues(alpha: 0.12),
+                  child: Icon(_insightIcon(insight.kind), color: accent),
+                ),
+                title: Text(
+                  insight.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(insight.detail),
+                ),
+                isThreeLine: insight.detail.length > 48,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Color _insightColor(InsightKind kind) {
+    switch (kind) {
+      case InsightKind.positive:
+        return Colors.green;
+      case InsightKind.warning:
+        return Colors.amber.shade800;
+      case InsightKind.info:
+        return Colors.blue;
+    }
+  }
+
+  IconData _insightIcon(InsightKind kind) {
+    switch (kind) {
+      case InsightKind.positive:
+        return Icons.check_circle_outline;
+      case InsightKind.warning:
+        return Icons.warning_amber_rounded;
+      case InsightKind.info:
+        return Icons.lightbulb_outline;
+    }
   }
 
   Widget _buildOverviewTab() {

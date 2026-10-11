@@ -6,6 +6,7 @@ import '../../providers/category_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/transaction.dart' as model;
 import '../../utils/currency.dart';
+import '../../services/insights/anomaly_engine.dart';
 import 'add_transaction_screen.dart';
 import '../../widgets/logo_widget.dart';
 
@@ -98,6 +99,61 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     }
 
     return filtered;
+  }
+
+  /// Shows the reason an expense was flagged as unusually large.
+  void _showAnomalyDetail(
+    model.Transaction transaction,
+    SpendingAnomaly anomaly,
+    String symbol,
+    String categoryName,
+  ) {
+    final amount = CurrencyFormatter.format(symbol, transaction.amount);
+    final mean = CurrencyFormatter.format(symbol, anomaly.categoryMean);
+    final times = anomaly.timesTypical;
+    final timesLabel = times >= 10
+        ? times.toStringAsFixed(0)
+        : times.toStringAsFixed(1);
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.amber[700]),
+                const SizedBox(width: 8),
+                const Text(
+                  'Unusually large',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'This $amount is about ${timesLabel}x your typical '
+              '$categoryName spend of $mean.',
+              style: const TextStyle(fontSize: 15, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Got it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteTransaction(model.Transaction transaction) async {
@@ -374,6 +430,21 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   transactionProvider.transactions,
                 );
 
+                // A2: compute anomalies ONCE per build over the displayed
+                // expenses, judged against the full history. Keyed by tx id
+                // for O(1) lookup in the item builder.
+                final anomaliesById = <int, SpendingAnomaly>{};
+                final anomalies = AnomalyEngine.detect(
+                  transactions: filteredTransactions
+                      .where((t) => t.type == 'expense')
+                      .toList(),
+                  history: transactionProvider.transactions,
+                );
+                for (final a in anomalies) {
+                  final id = a.transaction.id;
+                  if (id != null) anomaliesById[id] = a;
+                }
+
                 if (filteredTransactions.isEmpty) {
                   return Center(
                     child: Column(
@@ -415,6 +486,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                           ? null
                           : categoryProvider.getCategoryById(categoryId);
 
+                      final anomaly = transaction.id == null
+                          ? null
+                          : anomaliesById[transaction.id];
+                      final categoryName = category?.name ?? 'Uncategorised';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
@@ -454,6 +529,37 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                   color: Colors.grey,
                                 ),
                               ),
+                              // A2: subtle inline anomaly flag.
+                              if (anomaly != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: GestureDetector(
+                                    onTap: () => _showAnomalyDetail(
+                                      transaction,
+                                      anomaly,
+                                      symbol,
+                                      categoryName,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 14,
+                                          color: Colors.amber[700],
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Unusually large',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.amber[800],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                           trailing: Row(
