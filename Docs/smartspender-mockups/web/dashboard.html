@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartSpender — Dashboard</title>
+<!--
+  SmartSpender web redesign — DASHBOARD mockup.
+  Built with the app's OWN design tokens (mirrors webapp/frontend/src/index.css)
+  so this is a drop-in visual reference for the coding agent.
+  Default palette = "Fresh", light mode. Toggle controls at top-right are a
+  mockup convenience only (not part of the shipped screen).
+-->
+<style>
+/* ============================================================
+   APP TOKENS — mirrors the real index.css so the coding agent
+   maps 1:1. Only brand hues change per palette; finance semantics
+   (income/expense) stay constant.
+   ============================================================ */
+:root{
+  --radius:16px; --radius-sm:10px; --radius-lg:22px; --space:16px;
+  --font: system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --income:#16b364; --expense:#ef4444; --warning:#f59e0b; --info:#3b82f6; --positive:#16b364;
+}
+html[data-theme="light"]{
+  --bg:#f4f6f8; --bg-accent:#eef1f6; --surface:#fff; --surface-2:#f3f5f9; --surface-3:#e9edf3;
+  --text:#0f172a; --text-muted:#64748b; --border:#e4e8ef;
+  --shadow:0 1px 2px rgba(15,23,42,.04),0 6px 20px rgba(15,23,42,.06);
+  --shadow-lg:0 10px 34px rgba(15,23,42,.12); --on-brand:#fff;
+  --pattern-ink:rgba(15,23,42,.055); --pattern-ink-2:rgba(15,23,42,.04);
+}
+html[data-theme="dark"]{
+  --bg:#0b0f16; --bg-accent:#0e131c; --surface:#161b24; --surface-2:#1d2430; --surface-3:#263040;
+  --text:#eef2f8; --text-muted:#93a1b5; --border:#28313f;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg:0 14px 40px rgba(0,0,0,.5); --on-brand:#fff;
+  --pattern-ink:rgba(255,255,255,.045); --pattern-ink-2:rgba(255,255,255,.03);
+}
+html[data-palette="fresh"]{
+  --primary:#10b981; --primary-strong:#059669; --primary-soft:rgba(16,185,129,.12);
+  --accent:#14b8a6; --gradient:linear-gradient(135deg,#10b981 0%,#0ea5a4 55%,#0891b2 100%);
+  --ring:rgba(16,185,129,.35);
+  --pattern:radial-gradient(var(--pattern-ink) 1.6px,transparent 1.7px);
+  --pattern-size:22px 22px; --pattern-pos:0 0;
+}
+html[data-palette="premium"]{
+  --primary:#7c5cff; --primary-strong:#6137f5; --primary-soft:rgba(124,92,255,.14);
+  --accent:#d4a24a; --gradient:linear-gradient(135deg,#7c5cff 0%,#8b5cf6 50%,#a855f7 100%);
+  --ring:rgba(124,92,255,.38);
+  --pattern:repeating-linear-gradient(45deg,var(--pattern-ink) 0,var(--pattern-ink) 1px,transparent 1px,transparent 9px);
+  --pattern-size:auto; --pattern-pos:0 0;
+}
+html[data-palette="warm"]{
+  --primary:#f97316; --primary-strong:#ea580c; --primary-soft:rgba(249,115,22,.14);
+  --accent:#f43f5e; --gradient:linear-gradient(135deg,#fb923c 0%,#f97316 50%,#f43f5e 100%);
+  --ring:rgba(249,115,22,.36);
+  --pattern:radial-gradient(var(--pattern-ink) 3px,transparent 3.5px),radial-gradient(var(--pattern-ink-2) 2px,transparent 2.5px);
+  --pattern-size:54px 54px,54px 54px; --pattern-pos:0 0,27px 27px;
+}
+html[data-palette="calm"]{
+  --primary:#2f6fed; --primary-strong:#1d4ed8; --primary-soft:rgba(47,111,237,.13);
+  --accent:#0ea5e9; --gradient:linear-gradient(135deg,#2f6fed 0%,#3b82f6 55%,#0ea5e9 100%);
+  --ring:rgba(47,111,237,.35);
+  --pattern:repeating-linear-gradient(0deg,var(--pattern-ink) 0,var(--pattern-ink) 1px,transparent 1px,transparent 26px),repeating-linear-gradient(90deg,var(--pattern-ink) 0,var(--pattern-ink) 1px,transparent 1px,transparent 26px);
+  --pattern-size:auto; --pattern-pos:0 0;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--font); background-color:var(--bg);
+  background-image:var(--pattern,none); background-size:var(--pattern-size,auto);
+  background-position:var(--pattern-pos,0 0); background-attachment:fixed;
+  color:var(--text); -webkit-font-smoothing:antialiased; min-height:100vh;
+}
+.app{display:flex;min-height:100vh}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  width:244px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+}
+.brand{font-size:19px;font-weight:800;letter-spacing:-.02em;padding:2px 10px 22px;display:flex;align-items:center;gap:11px}
+.brand-mark{width:34px;height:34px;border-radius:10px;background:var(--gradient);display:grid;place-items:center;color:#fff;font-size:17px;box-shadow:0 6px 16px var(--ring);flex-shrink:0}
+.nav-link{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:var(--radius-sm);color:var(--text-muted);font-size:14px;font-weight:600;margin-bottom:3px;transition:.15s;position:relative}
+.nav-link:hover{background:var(--surface-2);color:var(--text)}
+.nav-link.active{background:var(--primary-soft);color:var(--primary-strong)}
+.nav-link.active::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0;background:var(--gradient)}
+.nav-ico{font-size:16px;width:20px;text-align:center}
+.side-foot{margin-top:auto;padding:12px 10px 2px;border-top:1px solid var(--border)}
+.side-user{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--gradient);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+.side-user .nm{font-size:13px;font-weight:700}
+.side-user .em{font-size:11px;color:var(--text-muted)}
+
+/* ---------- Content ---------- */
+.content{flex:1;padding:26px 30px;max-width:1140px;margin:0 auto;width:100%}
+.spread{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.page-title{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.page-sub{color:var(--text-muted);font-size:14px;margin-top:3px}
+.header-actions{display:flex;gap:10px;align-items:center}
+
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:var(--radius-sm);padding:10px 15px;font-size:14px;font-weight:600;transition:.15s}
+.btn:hover{background:var(--surface-2);border-color:var(--text-muted)}
+.btn.primary{background:var(--gradient);color:#fff;border-color:transparent;box-shadow:0 6px 16px var(--ring)}
+.btn.primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn.ghost{background:transparent;border-color:var(--border)}
+
+/* ---------- Hero balance card ---------- */
+.hero{
+  position:relative;overflow:hidden;border-radius:var(--radius-lg);padding:26px 28px;margin:22px 0;
+  background:var(--gradient);color:#fff;box-shadow:0 14px 40px var(--ring);
+}
+.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.12)}
+.hero::before{content:"";position:absolute;right:40px;bottom:-90px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero .inner{position:relative;z-index:1;display:flex;justify-content:space-between;flex-wrap:wrap;gap:20px}
+.hero .lbl{font-size:13px;opacity:.9;font-weight:600;letter-spacing:.02em}
+.hero .bal{font-size:40px;font-weight:800;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}
+.hero .delta{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;font-weight:600;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px}
+.hero-split{display:flex;gap:26px;align-items:flex-end}
+.hero-mini .lbl{font-size:12px}
+.hero-mini .v{font-size:21px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.spark{display:flex;align-items:flex-end;gap:4px;height:52px;margin-top:4px}
+.spark span{width:7px;border-radius:3px 3px 0 0;background:rgba(255,255,255,.55)}
+.spark span.hi{background:rgba(255,255,255,.95)}
+
+/* ---------- Stat tiles ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;position:relative;overflow:hidden}
+.stat .top{display:flex;align-items:center;justify-content:space-between}
+.stat .label{font-size:13px;color:var(--text-muted);font-weight:600}
+.stat .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:17px}
+.stat .value{font-size:26px;font-weight:800;margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .trend{font-size:12px;font-weight:600;margin-top:6px;display:inline-flex;align-items:center;gap:4px}
+.up{color:var(--income)} .down{color:var(--expense)}
+.ic.inc{background:color-mix(in srgb,var(--income) 15%,transparent);color:var(--income)}
+.ic.exp{background:color-mix(in srgb,var(--expense) 15%,transparent);color:var(--expense)}
+.ic.sav{background:var(--primary-soft);color:var(--primary-strong)}
+
+/* ---------- Cards & grid ---------- */
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:18px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:15px;font-weight:700}
+.link{font-size:13px;color:var(--primary-strong);font-weight:600}
+
+/* donut + legend */
+.donut-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.donut{--p:68;width:150px;height:150px;border-radius:50%;flex-shrink:0;
+  background:conic-gradient(#10b981 0 32%,#3b82f6 32% 54%,#f59e0b 54% 72%,#8b5cf6 72% 86%,#64748b 86% 100%);
+  display:grid;place-items:center;position:relative}
+.donut::after{content:"";position:absolute;inset:22px;border-radius:50%;background:var(--surface)}
+.donut .ctr{position:relative;z-index:1;text-align:center}
+.donut .ctr .s{font-size:11px;color:var(--text-muted);font-weight:600}
+.donut .ctr .b{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+.legend{flex:1;min-width:150px;display:flex;flex-direction:column;gap:9px}
+.leg{display:flex;align-items:center;gap:10px;font-size:13px}
+.dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.leg .nm{flex:1;font-weight:600}
+.leg .vl{font-variant-numeric:tabular-nums;color:var(--text-muted);font-weight:600}
+
+/* category / list rows */
+.list{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.chip-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:18px;color:#fff;flex-shrink:0}
+.row .grow{flex:1;min-width:0}
+.row .t{font-weight:700;font-size:14px}
+.row .sub{font-size:12px;color:var(--text-muted);margin-top:1px}
+.amount{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.amount.expense{color:var(--expense)} .amount.income{color:var(--income)}
+
+/* budget progress */
+.bud{padding:13px 2px;border-bottom:1px solid var(--border)}
+.bud:last-child{border-bottom:none}
+.bud .line{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bud .nm{font-weight:700;font-size:14px;flex:1}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+.badge.over{background:color-mix(in srgb,var(--expense) 15%,transparent);color:var(--expense)}
+.badge.near{background:color-mix(in srgb,var(--warning) 16%,transparent);color:var(--warning)}
+.badge.ok{background:var(--primary-soft);color:var(--primary-strong)}
+.progress{height:9px;border-radius:999px;background:var(--surface-3);overflow:hidden}
+.progress .bar{height:100%;border-radius:999px}
+.bud .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-top:6px;font-variant-numeric:tabular-nums}
+
+/* insight banner */
+.insight{display:flex;align-items:center;gap:14px;padding:15px 17px;border-radius:var(--radius);margin-top:18px;background:color-mix(in srgb,var(--info) 10%,transparent);border:1px solid color-mix(in srgb,var(--info) 25%,transparent)}
+.insight .ico{width:42px;height:42px;border-radius:12px;background:color-mix(in srgb,var(--info) 18%,transparent);display:grid;place-items:center;font-size:20px}
+.insight .t{font-weight:800;font-size:14px;color:var(--info)}
+.insight .d{font-size:13px;color:var(--text);margin-top:2px}
+
+/* mock toolbar (not part of screen) */
+.mockbar{position:fixed;top:12px;right:14px;z-index:99;display:flex;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:5px 7px;box-shadow:var(--shadow)}
+.mockbar button{border:none;background:var(--surface-2);color:var(--text);font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px}
+.mockbar button.on{background:var(--gradient);color:#fff}
+.sw{width:16px;height:16px;border-radius:50%;border:none;padding:0}
+
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}.sidebar{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="brand"><span class="brand-mark">💰</span><span>SmartSpender</span></div>
+    <a class="nav-link active"><span class="nav-ico">🏠</span><span>Dashboard</span></a>
+    <a class="nav-link"><span class="nav-ico">🧾</span><span>Transactions</span></a>
+    <a class="nav-link"><span class="nav-ico">🏷️</span><span>Categories</span></a>
+    <a class="nav-link"><span class="nav-ico">🎯</span><span>Budgets</span></a>
+    <a class="nav-link"><span class="nav-ico">📊</span><span>Reports</span></a>
+    <a class="nav-link"><span class="nav-ico">⚙️</span><span>Settings</span></a>
+    <div class="side-foot">
+      <div class="side-user">
+        <div class="avatar">MC</div>
+        <div><div class="nm">Michael</div><div class="em">Local account</div></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main class="content">
+    <div class="spread">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-sub">October 2026 · Overview</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn ghost">This month ▾</button>
+        <button class="btn primary">＋ Quick add</button>
+      </div>
+    </div>
+
+    <!-- Hero balance -->
+    <section class="hero">
+      <div class="inner">
+        <div>
+          <div class="lbl">Balance remaining</div>
+          <div class="bal">R 18,420</div>
+          <span class="delta">▲ 12% vs last month</span>
+        </div>
+        <div class="hero-split">
+          <div class="hero-mini">
+            <div class="lbl">Income</div>
+            <div class="v">R 42,000</div>
+          </div>
+          <div class="hero-mini">
+            <div class="lbl">Spent</div>
+            <div class="v">R 23,580</div>
+          </div>
+          <div class="hero-mini">
+            <div class="lbl">30-day flow</div>
+            <div class="spark">
+              <span style="height:40%"></span><span style="height:55%"></span><span style="height:35%"></span>
+              <span style="height:70%" class="hi"></span><span style="height:50%"></span><span style="height:62%"></span>
+              <span style="height:45%"></span><span style="height:80%" class="hi"></span><span style="height:58%"></span>
+              <span style="height:66%"></span><span style="height:48%"></span><span style="height:90%" class="hi"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stat tiles -->
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="top"><span class="label">Income</span><span class="ic inc">↓</span></div>
+        <div class="value">R 42,000</div>
+        <div class="trend up">▲ 4.1% from Sep</div>
+      </div>
+      <div class="stat">
+        <div class="top"><span class="label">Expenses</span><span class="ic exp">↑</span></div>
+        <div class="value">R 23,580</div>
+        <div class="trend down">▲ 8.3% from Sep</div>
+      </div>
+      <div class="stat">
+        <div class="top"><span class="label">Savings rate</span><span class="ic sav">◎</span></div>
+        <div class="value">43.9%</div>
+        <div class="trend up">▲ 2.0 pts</div>
+      </div>
+      <div class="stat">
+        <div class="top"><span class="label">Daily avg spend</span><span class="ic exp">∅</span></div>
+        <div class="value">R 786</div>
+        <div class="trend down">▼ 1.4% from Sep</div>
+      </div>
+    </div>
+
+    <!-- Insight -->
+    <div class="insight">
+      <div class="ico">💡</div>
+      <div>
+        <div class="t">You're pacing 8% under budget</div>
+        <div class="d">At this rate you'll end the month with ~R 1,900 unspent across your top 5 categories. Nice work.</div>
+      </div>
+    </div>
+
+    <!-- Two-column -->
+    <div class="grid-2">
+      <!-- Spending breakdown -->
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Spending by category</h2><a class="link">View report →</a></div>
+        <div class="donut-wrap">
+          <div class="donut"><div class="ctr"><div class="s">Total spent</div><div class="b">R 23,580</div></div></div>
+          <div class="legend">
+            <div class="leg"><span class="dot" style="background:#10b981"></span><span class="nm">Groceries</span><span class="vl">R 7,540</span></div>
+            <div class="leg"><span class="dot" style="background:#3b82f6"></span><span class="nm">Transport</span><span class="vl">R 5,190</span></div>
+            <div class="leg"><span class="dot" style="background:#f59e0b"></span><span class="nm">Dining out</span><span class="vl">R 4,240</span></div>
+            <div class="leg"><span class="dot" style="background:#8b5cf6"></span><span class="nm">Utilities</span><span class="vl">R 3,300</span></div>
+            <div class="leg"><span class="dot" style="background:#64748b"></span><span class="nm">Other</span><span class="vl">R 3,310</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget alerts -->
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Budget alerts</h2><a class="link">Manage →</a></div>
+        <div class="bud">
+          <div class="line"><span class="chip-ic" style="background:#ef4444;width:28px;height:28px;font-size:14px">🍔</span><span class="nm">Dining out</span><span class="badge over">Over</span></div>
+          <div class="progress"><div class="bar" style="width:112%;background:var(--expense)"></div></div>
+          <div class="meta"><span>R 4,240 / R 3,800</span><span>112%</span></div>
+        </div>
+        <div class="bud">
+          <div class="line"><span class="chip-ic" style="background:#f59e0b;width:28px;height:28px;font-size:14px">⛽</span><span class="nm">Transport</span><span class="badge near">Nearing</span></div>
+          <div class="progress"><div class="bar" style="width:87%;background:var(--warning)"></div></div>
+          <div class="meta"><span>R 5,190 / R 6,000</span><span>87%</span></div>
+        </div>
+        <div class="bud">
+          <div class="line"><span class="chip-ic" style="background:#10b981;width:28px;height:28px;font-size:14px">🛒</span><span class="nm">Groceries</span><span class="badge ok">On track</span></div>
+          <div class="progress"><div class="bar" style="width:63%;background:var(--primary)"></div></div>
+          <div class="meta"><span>R 7,540 / R 12,000</span><span>63%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent transactions -->
+    <div class="card" style="margin-top:18px">
+      <div class="card-head"><h2 class="card-title">Recent transactions</h2><a class="link">See all →</a></div>
+      <div class="list">
+        <div class="row">
+          <span class="chip-ic" style="background:#10b981">🛒</span>
+          <div class="grow"><div class="t">Woolworths</div><div class="sub">Groceries · Today, 09:14</div></div>
+          <span class="amount expense">− R 642.80</span>
+        </div>
+        <div class="row">
+          <span class="chip-ic" style="background:#64748b">💼</span>
+          <div class="grow"><div class="t">Salary — October</div><div class="sub">Income · 1 Oct</div></div>
+          <span class="amount income">＋ R 42,000.00</span>
+        </div>
+        <div class="row">
+          <span class="chip-ic" style="background:#f59e0b">🍔</span>
+          <div class="grow"><div class="t">Uber Eats</div><div class="sub">Dining out · Yesterday, 19:40</div></div>
+          <span class="amount expense">− R 318.00</span>
+        </div>
+        <div class="row">
+          <span class="chip-ic" style="background:#3b82f6">⛽</span>
+          <div class="grow"><div class="t">Engen Garage</div><div class="sub">Transport · 10 Oct</div></div>
+          <span class="amount expense">− R 950.00</span>
+        </div>
+        <div class="row">
+          <span class="chip-ic" style="background:#8b5cf6">💡</span>
+          <div class="grow"><div class="t">City of Cape Town</div><div class="sub">Utilities · 8 Oct</div></div>
+          <span class="amount expense">− R 1,120.00</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Mockup-only palette/mode switcher -->
+<div class="mockbar">
+  <button class="sw" style="background:#10b981" onclick="setPal('fresh')" title="Fresh"></button>
+  <button class="sw" style="background:#7c5cff" onclick="setPal('premium')" title="Premium"></button>
+  <button class="sw" style="background:#f97316" onclick="setPal('warm')" title="Warm"></button>
+  <button class="sw" style="background:#2f6fed" onclick="setPal('calm')" title="Calm"></button>
+  <button id="modeBtn" onclick="toggleMode()">🌙 Dark</button>
+</div>
+
+<script>
+  const html=document.documentElement;
+  html.setAttribute('data-theme','light');
+  html.setAttribute('data-palette','fresh');
+  function setPal(p){html.setAttribute('data-palette',p);}
+  function toggleMode(){
+    const d=html.getAttribute('data-theme')==='dark';
+    html.setAttribute('data-theme',d?'light':'dark');
+    document.getElementById('modeBtn').textContent=d?'🌙 Dark':'☀️ Light';
+  }
+</script>
+</body>
+</html>

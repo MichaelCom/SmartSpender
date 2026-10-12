@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartSpender — Add transaction</title>
+<style>
+/* ============================================================
+   SmartSpender — shared mockup theme
+   Mirrors the real webapp/frontend/src/index.css token system so these
+   mockups are a drop-in reference. Light/dark modes x 4 palettes.
+   The coding agent should map these token NAMES to the live app.
+   ============================================================ */
+:root{
+  --radius:16px; --radius-sm:10px; --radius-lg:22px; --space:16px;
+  --font: system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --income:#16b364; --expense:#ef4444; --warning:#f59e0b; --info:#3b82f6; --positive:#16b364;
+}
+html[data-theme="light"]{
+  --bg:#f4f6f8; --bg-accent:#eef1f6; --surface:#fff; --surface-2:#f3f5f9; --surface-3:#e9edf3;
+  --text:#0f172a; --text-muted:#64748b; --border:#e4e8ef;
+  --shadow:0 1px 2px rgba(15,23,42,.04),0 6px 20px rgba(15,23,42,.06);
+  --shadow-lg:0 10px 34px rgba(15,23,42,.12); --on-brand:#fff;
+  --pattern-ink:rgba(15,23,42,.055); --pattern-ink-2:rgba(15,23,42,.04);
+}
+html[data-theme="dark"]{
+  --bg:#0b0f16; --bg-accent:#0e131c; --surface:#161b24; --surface-2:#1d2430; --surface-3:#263040;
+  --text:#eef2f8; --text-muted:#93a1b5; --border:#28313f;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg:0 14px 40px rgba(0,0,0,.5); --on-brand:#fff;
+  --pattern-ink:rgba(255,255,255,.045); --pattern-ink-2:rgba(255,255,255,.03);
+}
+html[data-palette="fresh"]{
+  --primary:#10b981; --primary-strong:#059669; --primary-soft:rgba(16,185,129,.12);
+  --accent:#14b8a6; --gradient:linear-gradient(135deg,#10b981 0%,#0ea5a4 55%,#0891b2 100%);
+  --ring:rgba(16,185,129,.35);
+  --pattern:radial-gradient(var(--pattern-ink) 1.6px,transparent 1.7px);
+  --pattern-size:22px 22px; --pattern-pos:0 0;
+}
+html[data-palette="premium"]{
+  --primary:#7c5cff; --primary-strong:#6137f5; --primary-soft:rgba(124,92,255,.14);
+  --accent:#d4a24a; --gradient:linear-gradient(135deg,#7c5cff 0%,#8b5cf6 50%,#a855f7 100%);
+  --ring:rgba(124,92,255,.38);
+  --pattern:repeating-linear-gradient(45deg,var(--pattern-ink) 0,var(--pattern-ink) 1px,transparent 1px,transparent 9px);
+  --pattern-size:auto; --pattern-pos:0 0;
+}
+html[data-palette="warm"]{
+  --primary:#f97316; --primary-strong:#ea580c; --primary-soft:rgba(249,115,22,.14);
+  --accent:#f43f5e; --gradient:linear-gradient(135deg,#fb923c 0%,#f97316 50%,#f43f5e 100%);
+  --ring:rgba(249,115,22,.36);
+  --pattern:radial-gradient(var(--pattern-ink) 3px,transparent 3.5px),radial-gradient(var(--pattern-ink-2) 2px,transparent 2.5px);
+  --pattern-size:54px 54px,54px 54px; --pattern-pos:0 0,27px 27px;
+}
+html[data-palette="calm"]{
+  --primary:#2f6fed; --primary-strong:#1d4ed8; --primary-soft:rgba(47,111,237,.13);
+  --accent:#0ea5e9; --gradient:linear-gradient(135deg,#2f6fed 0%,#3b82f6 55%,#0ea5e9 100%);
+  --ring:rgba(47,111,237,.35);
+  --pattern:repeating-linear-gradient(0deg,var(--pattern-ink) 0,var(--pattern-ink) 1px,transparent 1px,transparent 26px),repeating-linear-gradient(90deg,var(--pattern-ink) 0,var(--pattern-ink) 1px,transparent 1px,transparent 26px);
+  --pattern-size:auto; --pattern-pos:0 0;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--font); background-color:var(--bg);
+  background-image:var(--pattern,none); background-size:var(--pattern-size,auto);
+  background-position:var(--pattern-pos,0 0); background-attachment:fixed;
+  color:var(--text); -webkit-font-smoothing:antialiased; min-height:100vh;
+}
+.app{display:flex;min-height:100vh}
+
+/* ---------- Sidebar ---------- */
+.sidebar{width:244px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.brand{font-size:19px;font-weight:800;letter-spacing:-.02em;padding:2px 10px 22px;display:flex;align-items:center;gap:11px}
+.brand-mark{width:34px;height:34px;border-radius:10px;background:var(--gradient);display:grid;place-items:center;color:#fff;font-size:17px;box-shadow:0 6px 16px var(--ring);flex-shrink:0}
+.nav-link{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:var(--radius-sm);color:var(--text-muted);font-size:14px;font-weight:600;margin-bottom:3px;transition:.15s;position:relative;cursor:pointer}
+.nav-link:hover{background:var(--surface-2);color:var(--text)}
+.nav-link.active{background:var(--primary-soft);color:var(--primary-strong)}
+.nav-link.active::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0;background:var(--gradient)}
+.nav-ico{font-size:16px;width:20px;text-align:center}
+.side-foot{margin-top:auto;padding:12px 10px 2px;border-top:1px solid var(--border)}
+.side-user{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--gradient);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+.side-user .nm{font-size:13px;font-weight:700}
+.side-user .em{font-size:11px;color:var(--text-muted)}
+
+/* ---------- Content ---------- */
+.content{flex:1;padding:26px 30px;max-width:1140px;margin:0 auto;width:100%}
+.spread{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.page-title{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.page-sub{color:var(--text-muted);font-size:14px;margin-top:3px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.section-gap{margin-top:18px}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:var(--radius-sm);padding:10px 15px;font-size:14px;font-weight:600;transition:.15s;cursor:pointer}
+.btn:hover{background:var(--surface-2);border-color:var(--text-muted)}
+.btn.primary{background:var(--gradient);color:#fff;border-color:transparent;box-shadow:0 6px 16px var(--ring)}
+.btn.primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn.ghost{background:transparent;border-color:var(--border)}
+.btn.danger{background:var(--expense);color:#fff;border-color:var(--expense)}
+.btn.sm{padding:6px 10px;font-size:12px}
+
+/* ---------- Cards ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:15px;font-weight:700}
+.link{font-size:13px;color:var(--primary-strong);font-weight:600;cursor:pointer}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+/* ---------- Form controls ---------- */
+input,select,textarea{font-family:inherit;font-size:14px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--ring)}
+label{display:block;font-size:13px;color:var(--text-muted);margin-bottom:6px;font-weight:600}
+
+/* ---------- Toolbar / filters ---------- */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.toolbar .field{display:flex;flex-direction:column}
+.toolbar .field.grow{flex:1;min-width:180px}
+.search{position:relative}
+.search input{padding-left:34px}
+.search .mag{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted)}
+
+/* ---------- Lists / rows ---------- */
+.list{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.chip-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:18px;color:#fff;flex-shrink:0}
+.row .grow{flex:1;min-width:0}
+.row .t{font-weight:700;font-size:14px}
+.row .sub{font-size:12px;color:var(--text-muted);margin-top:1px}
+.amount{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.amount.expense{color:var(--expense)} .amount.income{color:var(--income)}
+
+/* ---------- Chips / badges ---------- */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--text);border:1px solid var(--border);cursor:pointer}
+.chip.on{background:var(--primary-soft);color:var(--primary-strong);border-color:transparent}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+.badge.over{background:color-mix(in srgb,var(--expense) 15%,transparent);color:var(--expense)}
+.badge.near{background:color-mix(in srgb,var(--warning) 16%,transparent);color:var(--warning)}
+.badge.ok{background:var(--primary-soft);color:var(--primary-strong)}
+
+/* ---------- Progress ---------- */
+.progress{height:9px;border-radius:999px;background:var(--surface-3);overflow:hidden}
+.progress .bar{height:100%;border-radius:999px;transition:width .3s}
+
+/* ---------- Tabs ---------- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.tab{padding:10px 15px;border:none;background:none;color:var(--text-muted);font-size:14px;font-weight:600;border-bottom:2px solid transparent;white-space:nowrap;cursor:pointer}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+
+/* ---------- Table ---------- */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;color:var(--text-muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--border)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr{transition:background .12s}
+.tbl tbody tr:hover{background:var(--surface-2)}
+
+/* ---------- Modal ---------- */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;padding:20px;z-index:50}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:22px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal h3{margin-bottom:4px;font-size:19px;font-weight:800}
+.modal .msub{color:var(--text-muted);font-size:13px;margin-bottom:18px}
+.form-row{margin-bottom:15px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.seg{display:flex;background:var(--surface-2);border-radius:var(--radius-sm);padding:3px;gap:3px}
+.seg button{flex:1;border:none;background:none;padding:9px;border-radius:8px;font-weight:700;font-size:13px;color:var(--text-muted);cursor:pointer}
+.seg button.on-inc{background:var(--surface);color:var(--income);box-shadow:var(--shadow)}
+.seg button.on-exp{background:var(--surface);color:var(--expense);box-shadow:var(--shadow)}
+.swatch-grid{display:flex;flex-wrap:wrap;gap:8px}
+.swatch{width:32px;height:32px;border-radius:9px;border:2px solid transparent;cursor:pointer}
+.swatch.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--surface) inset}
+.icon-grid{display:flex;flex-wrap:wrap;gap:7px}
+.icon-pick{width:40px;height:40px;border-radius:9px;display:grid;place-items:center;font-size:18px;border:1px solid var(--border);background:var(--surface);cursor:pointer}
+.icon-pick.sel{border-color:var(--primary);background:var(--surface-2)}
+
+/* ---------- Toggle switch ---------- */
+.switch{width:44px;height:25px;border-radius:999px;background:var(--surface-3);position:relative;cursor:pointer;transition:.2s;flex-shrink:0}
+.switch.on{background:var(--primary)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch.on::after{left:21px}
+.set-row{display:flex;align-items:center;gap:14px;padding:15px 2px;border-bottom:1px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-row .grow{flex:1}
+.set-row .t{font-weight:700;font-size:14px}
+.set-row .d{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+/* ---------- Misc ---------- */
+.muted{color:var(--text-muted)}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.palette-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.palette-option{display:flex;align-items:center;gap:10px;padding:12px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;transition:.15s}
+.palette-option:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.palette-option.active{border-color:var(--primary);box-shadow:0 0 0 3px var(--ring)}
+.palette-swatch{width:24px;height:24px;border-radius:7px;flex-shrink:0}
+
+/* ---------- Mockup-only switcher ---------- */
+.mockbar{position:fixed;top:12px;right:14px;z-index:99;display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:5px 7px;box-shadow:var(--shadow)}
+.mockbar .sw{width:16px;height:16px;border-radius:50%;border:none;padding:0;cursor:pointer}
+.mockbar #modeBtn{border:none;background:var(--surface-2);color:var(--text);font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;cursor:pointer}
+
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.sidebar{display:none}}
+
+</style></head><body>
+<div class="app"><nav class="sidebar"><div class="brand"><span class="brand-mark">💰</span><span>SmartSpender</span></div>
+    <a class="nav-link"><span class="nav-ico">🏠</span><span>Dashboard</span></a>
+    <a class="nav-link active"><span class="nav-ico">🧾</span><span>Transactions</span></a>
+    <a class="nav-link"><span class="nav-ico">🏷️</span><span>Categories</span></a>
+    <a class="nav-link"><span class="nav-ico">🎯</span><span>Budgets</span></a>
+    <a class="nav-link"><span class="nav-ico">📊</span><span>Reports</span></a>
+    <a class="nav-link"><span class="nav-ico">⚙️</span><span>Settings</span></a>
+    <div class="side-foot"><div class="side-user"><div class="avatar">MC</div>
+      <div><div class="nm">Michael</div><div class="em">Local account</div></div></div></div></nav><main class="content">
+    <h1 class="page-title">Transactions</h1>
+    <p class="page-sub">The Add / Edit transaction modal (shown over the screen)</p>
+    <div class="card section-gap" style="opacity:.5"><div class="muted">— transaction list behind the modal —</div></div>
+  </main></div>
+<div class="modal-backdrop">
+  <div class="modal">
+    <h3>Add transaction</h3>
+    <p class="msub">Record income or an expense</p>
+    <div class="form-row">
+      <div class="seg"><button class="on-exp">− Expense</button><button>＋ Income</button></div>
+    </div>
+    <div class="form-row">
+      <label>Amount</label>
+      <div style="position:relative"><span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-weight:800;color:var(--text-muted)">R</span>
+      <input value="642.80" style="padding-left:30px;font-size:20px;font-weight:800"></div>
+    </div>
+    <div class="form-row"><label>Description</label><input value="Woolworths"></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Category</label><select><option>🛒 Groceries</option><option>⛽ Transport</option><option>🍔 Dining out</option></select></div>
+      <div class="form-row"><label>Date</label><input value="2026-10-12" type="date"></div>
+    </div>
+    <div class="form-row"><label>Note (optional)</label><textarea rows="2" placeholder="Add a note…"></textarea></div>
+    <div class="form-row">
+      <label>Suggestions</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span class="chip" style="background:color-mix(in srgb,var(--info) 14%,transparent);color:var(--info);border-color:transparent">💡 Looks like “Groceries”</span>
+        <span class="chip">↻ Make recurring</span>
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn ghost">Cancel</button><button class="btn primary">Save transaction</button></div>
+  </div>
+</div>
+<div class="mockbar">
+  <button class="sw" style="background:#10b981" onclick="setPal('fresh')" title="Fresh"></button>
+  <button class="sw" style="background:#7c5cff" onclick="setPal('premium')" title="Premium"></button>
+  <button class="sw" style="background:#f97316" onclick="setPal('warm')" title="Warm"></button>
+  <button class="sw" style="background:#2f6fed" onclick="setPal('calm')" title="Calm"></button>
+  <button id="modeBtn" onclick="toggleMode()">🌙 Dark</button></div>
+<script>const html=document.documentElement;html.setAttribute('data-theme','light');html.setAttribute('data-palette','fresh');
+function setPal(p){html.setAttribute('data-palette',p);}
+function toggleMode(){const d=html.getAttribute('data-theme')==='dark';html.setAttribute('data-theme',d?'light':'dark');
+document.getElementById('modeBtn').textContent=d?'🌙 Dark':'☀️ Light';}</script>
+
+</body></html>

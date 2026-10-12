@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartSpender Mobile — Categories</title>
+<style>
+/* SmartSpender MOBILE (Flutter) mockup theme.
+   Approximates Material 3 ColorScheme.fromSeed(seedColor: Colors.green),
+   light + dark. Mobile has ONE brand (green) + light/dark — no 4-palette
+   system (that is web-only). Token names map to Flutter ColorScheme roles. */
+:root{
+  --m3-income:#2e7d32; --m3-expense:#c62828; --m3-warning:#f9a825; --m3-info:#1565c0;
+  --font: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html[data-theme="light"]{
+  --primary:#4e9f3d;            /* green seed primary */
+  --on-primary:#ffffff;
+  --primary-container:#b7f0a7;
+  --on-primary-container:#0a2e05;
+  --surface:#fcfdf6;            /* M3 surface */
+  --surface-dim:#dcdfd3;
+  --surface-container:#f0f3e8;
+  --surface-container-high:#eaeee1;
+  --on-surface:#1a1c17;
+  --on-surface-variant:#44483d;
+  --outline:#75796c;
+  --outline-variant:#c5c8ba;
+  --inverse-primary:#9ccb8f;
+  --scrim:rgba(0,0,0,.4);
+  --elev:0 1px 2px rgba(0,0,0,.08),0 2px 8px rgba(0,0,0,.06);
+}
+html[data-theme="dark"]{
+  --primary:#9ccb8f;
+  --on-primary:#143808;
+  --primary-container:#2d5020;
+  --on-primary-container:#b7f0a7;
+  --surface:#11140e;
+  --surface-dim:#11140e;
+  --surface-container:#1d201a;
+  --surface-container-high:#282b24;
+  --on-surface:#e2e3d8;
+  --on-surface-variant:#c5c8ba;
+  --outline:#8f9285;
+  --outline-variant:#44483d;
+  --inverse-primary:#4e9f3d;
+  --scrim:rgba(0,0,0,.6);
+  --elev:0 1px 2px rgba(0,0,0,.4),0 2px 10px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:#30332b;color:var(--on-surface);
+  -webkit-font-smoothing:antialiased;display:flex;flex-wrap:wrap;gap:30px;
+  justify-content:center;padding:34px 20px;min-height:100vh}
+
+/* phone frame */
+.phone{width:390px;height:844px;border-radius:46px;background:var(--surface);
+  box-shadow:0 0 0 12px #1b1d18,0 0 0 14px #2c2f27,0 26px 60px rgba(0,0,0,.55);
+  position:relative;overflow:hidden;display:flex;flex-direction:column}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:30px;
+  background:#1b1d18;border-radius:0 0 20px 20px;z-index:40}
+.statusbar{height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:0 26px;font-size:13px;font-weight:700;color:var(--on-surface)}
+.scr-label{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:12px;
+  font-weight:700;color:rgba(255,255,255,.5);z-index:50}
+
+/* app bar */
+.appbar{height:58px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 8px 0 16px;
+  background:var(--inverse-primary);color:var(--on-surface)}
+.appbar.plain{background:var(--surface);border-bottom:1px solid var(--outline-variant)}
+.appbar .ttl{font-size:19px;font-weight:800;flex:1}
+.appbar .ab-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:19px;cursor:pointer}
+.brandrow{display:flex;align-items:center;gap:9px;flex:1;justify-content:center}
+.brandrow .mk{width:30px;height:30px;border-radius:9px;background:var(--primary);color:var(--on-primary);display:grid;place-items:center;font-size:16px}
+.brandrow .nm{font-weight:800;font-size:17px}
+
+/* body scroll area */
+.scroll{flex:1;overflow-y:auto;padding:16px}
+.scroll::-webkit-scrollbar{width:0}
+
+/* bottom nav */
+.botnav{height:74px;flex-shrink:0;display:flex;background:var(--surface-container);border-top:1px solid var(--outline-variant)}
+.botnav .item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--on-surface-variant);cursor:pointer}
+.botnav .item .pill{width:52px;height:30px;border-radius:16px;display:grid;place-items:center;font-size:19px;transition:.15s}
+.botnav .item.active{color:var(--on-surface)}
+.botnav .item.active .pill{background:var(--primary-container);color:var(--on-primary-container)}
+
+/* cards */
+.m-card{background:var(--surface-container);border-radius:18px;padding:16px;box-shadow:var(--elev);margin-bottom:14px}
+.m-card.flat{box-shadow:none;border:1px solid var(--outline-variant)}
+.sec-title{font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--on-surface-variant);margin:4px 2px 10px;text-transform:uppercase}
+.h-title{font-size:20px;font-weight:800}
+.muted{color:var(--on-surface-variant)}
+
+/* hero */
+.hero{border-radius:22px;padding:22px;color:var(--on-primary);position:relative;overflow:hidden;
+  background:linear-gradient(135deg,var(--primary),#2e7d32)}
+.hero::after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.12)}
+.hero .lbl{font-size:13px;opacity:.92;font-weight:600;position:relative}
+.hero .big{font-size:36px;font-weight:800;margin-top:4px;position:relative;font-variant-numeric:tabular-nums}
+.hero .pillrow{display:flex;gap:8px;margin-top:12px;position:relative}
+.hero .pill{background:rgba(255,255,255,.2);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700}
+
+/* mini stat row */
+.mini-row{display:flex;gap:12px;margin-bottom:14px}
+.mini{flex:1;background:var(--surface-container);border-radius:16px;padding:14px;box-shadow:var(--elev)}
+.mini .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;margin-bottom:8px}
+.mini .k{font-size:12px;font-weight:600;color:var(--on-surface-variant)}
+.mini .v{font-size:19px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.ic-inc{background:color-mix(in srgb,var(--m3-income) 18%,transparent);color:var(--m3-income)}
+.ic-exp{background:color-mix(in srgb,var(--m3-expense) 18%,transparent);color:var(--m3-expense)}
+
+/* list rows */
+.m-row{display:flex;align-items:center;gap:13px;padding:12px 2px;border-bottom:1px solid var(--outline-variant)}
+.m-row:last-child{border-bottom:none}
+.m-ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:19px;color:#fff;flex-shrink:0}
+.m-row .grow{flex:1;min-width:0}
+.m-row .t{font-weight:700;font-size:14px}
+.m-row .s{font-size:12px;color:var(--on-surface-variant);margin-top:1px}
+.amt{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14px}
+.amt.income{color:var(--m3-income)} .amt.expense{color:var(--m3-expense)}
+
+/* chips */
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:4px}
+.m-chip{white-space:nowrap;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
+  background:var(--surface-container-high);color:var(--on-surface-variant);border:1px solid var(--outline-variant)}
+.m-chip.on{background:var(--primary-container);color:var(--on-primary-container);border-color:transparent}
+
+/* progress */
+.m-prog{height:9px;border-radius:999px;background:var(--surface-container-high);overflow:hidden;margin-top:4px}
+.m-prog .bar{height:100%;border-radius:999px}
+.badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px}
+.b-over{background:color-mix(in srgb,var(--m3-expense) 16%,transparent);color:var(--m3-expense)}
+.b-near{background:color-mix(in srgb,var(--m3-warning) 20%,transparent);color:var(--m3-warning)}
+.b-ok{background:var(--primary-container);color:var(--on-primary-container)}
+
+/* FAB */
+.fab{position:absolute;right:18px;bottom:90px;width:60px;height:60px;border-radius:20px;background:var(--primary-container);
+  color:var(--on-primary-container);display:grid;place-items:center;font-size:28px;box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:30}
+
+/* segmented */
+.seg{display:flex;background:var(--surface-container-high);border-radius:14px;padding:4px;gap:4px;margin-bottom:16px}
+.seg button{flex:1;border:none;background:none;padding:11px;border-radius:11px;font-weight:800;font-size:14px;color:var(--on-surface-variant)}
+.seg .on-exp{background:var(--surface);color:var(--m3-expense);box-shadow:var(--elev)}
+.seg .on-inc{background:var(--surface);color:var(--m3-income);box-shadow:var(--elev)}
+
+/* fields */
+.m-field{margin-bottom:16px}
+.m-field label{display:block;font-size:12px;font-weight:700;color:var(--on-surface-variant);margin-bottom:6px}
+.m-input{width:100%;background:var(--surface-container);border:1px solid var(--outline);border-radius:12px;padding:13px;font-size:15px;color:var(--on-surface);font-family:inherit}
+.m-input:focus{border-color:var(--primary);outline:none}
+.amount-field{font-size:28px;font-weight:800;text-align:center;letter-spacing:-.01em}
+
+/* list tile (settings) */
+.tile{display:flex;align-items:center;gap:14px;padding:15px 4px}
+.tile .lead{width:26px;text-align:center;font-size:20px;color:var(--on-surface-variant)}
+.tile .grow{flex:1}
+.tile .t{font-weight:700;font-size:15px}
+.tile .s{font-size:12.5px;color:var(--on-surface-variant);margin-top:1px}
+.radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--outline);display:grid;place-items:center}
+.radio.on{border-color:var(--primary)}
+.radio.on::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--primary)}
+.divider{height:1px;background:var(--outline-variant);margin:6px 0}
+
+/* mock mode toggle */
+.mockbar{position:fixed;top:12px;right:14px;z-index:99;background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;color:#222;border:none}
+
+</style></head><body>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>9:41</span><span>5G 􀙇 100%</span></div>
+  <div class="appbar plain"><span class="ttl">Categories</span><div class="ab-ic">⋮</div></div>
+  <div class="scroll">
+<div class="sec-title">8 categories</div><div class="m-card"><div class="m-row"><span class="m-ic" style="background:#43a047">🛒</span><div class="grow"><div class="t">Groceries</div><div class="s">48 txns</div></div><span class="amt">R 7,540</span></div><div class="m-row"><span class="m-ic" style="background:#1e88e5">⛽</span><div class="grow"><div class="t">Transport</div><div class="s">22 txns</div></div><span class="amt">R 5,190</span></div><div class="m-row"><span class="m-ic" style="background:#fb8c00">🍔</span><div class="grow"><div class="t">Dining out</div><div class="s">31 txns</div></div><span class="amt">R 4,240</span></div><div class="m-row"><span class="m-ic" style="background:#8e24aa">💡</span><div class="grow"><div class="t">Utilities</div><div class="s">6 txns</div></div><span class="amt">R 3,300</span></div><div class="m-row"><span class="m-ic" style="background:#ec407a">🎬</span><div class="grow"><div class="t">Entertainment</div><div class="s">9 txns</div></div><span class="amt">R 1,210</span></div><div class="m-row"><span class="m-ic" style="background:#00acc1">🏋️</span><div class="grow"><div class="t">Health</div><div class="s">4 txns</div></div><span class="amt">R 1,198</span></div></div>
+  </div>
+  <div class="fab">＋</div>
+  <div class="botnav"><div class="item"><div class="pill">🏠</div><span>Dashboard</span></div><div class="item"><div class="pill">🧾</div><span>Transactions</span></div><div class="item active"><div class="pill">🏷️</div><span>Categories</span></div><div class="item"><div class="pill">🎯</div><span>Budgets</span></div><div class="item"><div class="pill">📊</div><span>Reports</span></div></div>
+  
+</div>
+<div class="scr-label">Categories</div>
+<button class="mockbar" onclick="tog()">🌙 Dark</button>
+<script>const h=document.documentElement;h.setAttribute('data-theme','light');
+function tog(){const d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');
+event.target.textContent=d?'🌙 Dark':'☀️ Light';}</script>
+</body></html>
