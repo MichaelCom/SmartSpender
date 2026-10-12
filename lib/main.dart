@@ -10,6 +10,7 @@ import 'database/app_database.dart';
 import 'repositories/repositories.dart';
 import 'repositories/drift_repositories.dart';
 import 'services/recurring_generator.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,29 +40,6 @@ class SmartSpenderApp extends StatelessWidget {
   final AppRepositories repositories;
   final SettingsController settings;
 
-  ThemeData _buildTheme(Brightness brightness) {
-    return ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.green,
-        brightness: brightness,
-      ),
-      useMaterial3: true,
-      appBarTheme: const AppBarTheme(
-        centerTitle: true,
-        elevation: 0,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        elevation: 4,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -80,8 +58,8 @@ class SmartSpenderApp extends StatelessWidget {
       child: Consumer<SettingsController>(
         builder: (context, settings, _) => MaterialApp(
           title: 'SmartSpender',
-          theme: _buildTheme(Brightness.light),
-          darkTheme: _buildTheme(Brightness.dark),
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
           themeMode: settings.themeMode,
           home: const AppInitializer(),
           debugShowCheckedModeBanner: false,
