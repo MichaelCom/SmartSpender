@@ -74,7 +74,7 @@ export function Dashboard() {
               <div className="label">Expenses</div>
               <div className="value expense">{fmt(summary.data?.expenses ?? 0)}</div>
             </div>
-            <div className="stat">
+            <div className="stat hero">
               <div className="label">Balance</div>
               <div className="value">{fmt(summary.data?.balance ?? 0)}</div>
             </div>

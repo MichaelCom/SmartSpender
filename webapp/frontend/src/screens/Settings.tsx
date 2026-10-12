@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { ThemeMode } from "../context/SettingsContext";
 import { useSettings } from "../context/SettingsContext";
+import { PALETTES } from "../context/SettingsContext";
 import { AppCurrencies } from "../lib/currency";
 import { DataApi } from "../api/client";
 import type { BackupDocument, ImportResult } from "../api/types";
@@ -16,9 +17,11 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 export function Settings() {
   const {
     themeMode,
+    palette,
     currencyCode,
     budgetAlertThreshold,
     setThemeMode,
+    setPalette,
     setCurrencyCode,
     setBudgetAlertThreshold,
   } = useSettings();
@@ -31,7 +34,7 @@ export function Settings() {
       <div className="card">
         <h2 className="card-title">Appearance</h2>
         <div className="form-row">
-          <label>Theme</label>
+          <label>Mode</label>
           <div className="row">
             {THEME_OPTIONS.map((o) => (
               <button
@@ -40,6 +43,27 @@ export function Settings() {
                 onClick={() => setThemeMode(o.value)}
               >
                 {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-row" style={{ marginTop: 16 }}>
+          <label>Theme</label>
+          <div className="palette-grid">
+            {PALETTES.map((p) => (
+              <button
+                key={p.id}
+                className={`palette-option${palette === p.id ? " active" : ""}`}
+                onClick={() => setPalette(p.id)}
+                type="button"
+                aria-label={p.name}
+              >
+                <span
+                  className="palette-swatch"
+                  style={{ background: p.swatch }}
+                />
+                <span className="palette-name">{p.name}</span>
               </button>
             ))}
           </div>

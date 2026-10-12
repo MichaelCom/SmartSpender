@@ -18,11 +18,23 @@ import { AppCurrencies } from "../lib/currency";
 
 export type ThemeMode = "system" | "light" | "dark";
 
+/** Colour personalities. Orthogonal to light/dark mode. */
+export type Palette = "fresh" | "premium" | "warm" | "calm";
+
+export const PALETTES: { id: Palette; name: string; swatch: string }[] = [
+  { id: "fresh", name: "Fresh", swatch: "#10b981" },
+  { id: "premium", name: "Premium", swatch: "#7c5cff" },
+  { id: "warm", name: "Warm", swatch: "#f97316" },
+  { id: "calm", name: "Calm", swatch: "#2f6fed" },
+];
+
 const THEME_MODE_KEY = "settings.themeMode";
+const PALETTE_KEY = "settings.palette";
 const CURRENCY_CODE_KEY = "settings.currencyCode";
 const BUDGET_ALERT_THRESHOLD_KEY = "settings.budgetAlertThreshold";
 
 export const DEFAULT_THEME_MODE: ThemeMode = "system";
+export const DEFAULT_PALETTE: Palette = "fresh";
 export const DEFAULT_CURRENCY_CODE = "ZAR";
 export const DEFAULT_BUDGET_ALERT_THRESHOLD = 80;
 
@@ -34,6 +46,12 @@ function loadThemeMode(): ThemeMode {
   const v = localStorage.getItem(THEME_MODE_KEY);
   if (v === "system" || v === "light" || v === "dark") return v;
   return DEFAULT_THEME_MODE;
+}
+
+function loadPalette(): Palette {
+  const v = localStorage.getItem(PALETTE_KEY);
+  if (v === "fresh" || v === "premium" || v === "warm" || v === "calm") return v;
+  return DEFAULT_PALETTE;
 }
 
 function loadCurrencyCode(): string {
@@ -49,10 +67,12 @@ function loadThreshold(): number {
 
 export interface SettingsState {
   themeMode: ThemeMode;
+  palette: Palette;
   currencyCode: string;
   currencySymbol: string;
   budgetAlertThreshold: number;
   setThemeMode: (mode: ThemeMode) => void;
+  setPalette: (palette: Palette) => void;
   setCurrencyCode: (code: string) => void;
   setBudgetAlertThreshold: (percent: number) => void;
 }
@@ -71,6 +91,7 @@ export function resolveDark(mode: ThemeMode): boolean {
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [themeMode, setThemeModeState] = useState<ThemeMode>(loadThemeMode);
+  const [palette, setPaletteState] = useState<Palette>(loadPalette);
   const [currencyCode, setCurrencyCodeState] = useState<string>(loadCurrencyCode);
   const [budgetAlertThreshold, setThresholdState] = useState<number>(loadThreshold);
 
@@ -79,6 +100,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (prev === mode) return prev;
       localStorage.setItem(THEME_MODE_KEY, mode);
       return mode;
+    });
+  }, []);
+
+  const setPalette = useCallback((p: Palette) => {
+    setPaletteState((prev) => {
+      if (prev === p) return prev;
+      localStorage.setItem(PALETTE_KEY, p);
+      return p;
     });
   }, []);
 
@@ -113,17 +142,24 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [themeMode]);
 
+  // Apply the colour palette to <html>.
+  useEffect(() => {
+    document.documentElement.dataset.palette = palette;
+  }, [palette]);
+
   const value = useMemo<SettingsState>(
     () => ({
       themeMode,
+      palette,
       currencyCode,
       currencySymbol: AppCurrencies.symbolFor(currencyCode),
       budgetAlertThreshold,
       setThemeMode,
+      setPalette,
       setCurrencyCode,
       setBudgetAlertThreshold,
     }),
-    [themeMode, currencyCode, budgetAlertThreshold, setThemeMode, setCurrencyCode, setBudgetAlertThreshold],
+    [themeMode, palette, currencyCode, budgetAlertThreshold, setThemeMode, setPalette, setCurrencyCode, setBudgetAlertThreshold],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

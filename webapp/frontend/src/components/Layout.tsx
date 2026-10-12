@@ -13,7 +13,10 @@ export function Layout() {
   return (
     <div className="app">
       <nav className="sidebar">
-        <div className="brand">💰 SmartSpender</div>
+        <div className="brand">
+          <span className="brand-mark">💰</span>
+          <span>SmartSpender</span>
+        </div>
         {NAV.map((n) => (
           <NavLink
             key={n.to}

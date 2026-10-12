@@ -1,42 +1,120 @@
 :root {
-  --radius: 12px;
-  --radius-sm: 8px;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-lg: 22px;
   --space: 16px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Semantic finance colours stay constant across palettes so income/expense
+     always read the same. Palettes only change the BRAND hues. */
+  --income: #16b364;
+  --expense: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --positive: #16b364;
 }
 
+/* ============================================================
+   MODE (light / dark) — neutral surfaces, text, borders, depth.
+   ============================================================ */
 html[data-theme="light"] {
-  --bg: #f5f6f8;
+  --bg: #f4f6f8;
+  --bg-accent: #eef1f6;
   --surface: #ffffff;
-  --surface-2: #f0f1f4;
-  --text: #1a1d21;
-  --text-muted: #6b7280;
-  --border: #e3e6eb;
-  --primary: #3498db;
-  --primary-contrast: #ffffff;
-  --income: #2ecc71;
-  --expense: #e74c3c;
-  --warning: #f39c12;
-  --info: #3498db;
-  --positive: #2ecc71;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --surface-2: #f3f5f9;
+  --surface-3: #e9edf3;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #e4e8ef;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 34px rgba(15, 23, 42, 0.12);
+  --on-brand: #ffffff;
+  /* Ink the background pattern draws with (dark marks on a light page). */
+  --pattern-ink: rgba(15, 23, 42, 0.055);
+  --pattern-ink-2: rgba(15, 23, 42, 0.04);
 }
 
 html[data-theme="dark"] {
-  --bg: #121417;
-  --surface: #1c1f24;
-  --surface-2: #262a30;
-  --text: #e8eaed;
-  --text-muted: #9aa0a6;
-  --border: #2e333a;
-  --primary: #4aa3e0;
-  --primary-contrast: #0b0d10;
-  --income: #37d67a;
-  --expense: #ef5350;
-  --warning: #f5a623;
-  --info: #4aa3e0;
-  --positive: #37d67a;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --bg: #0b0f16;
+  --bg-accent: #0e131c;
+  --surface: #161b24;
+  --surface-2: #1d2430;
+  --surface-3: #263040;
+  --text: #eef2f8;
+  --text-muted: #93a1b5;
+  --border: #28313f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.5);
+  --on-brand: #ffffff;
+  /* Ink the background pattern draws with (light marks on a dark page). */
+  --pattern-ink: rgba(255, 255, 255, 0.045);
+  --pattern-ink-2: rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================================
+   PALETTE (brand personality) — primary + gradient + ring.
+   Each palette sets its hues once; mild light/dark overrides keep
+   contrast right. Default palette is applied even if data-palette
+   is absent (the :root-level fallback below = Fresh).
+   ============================================================ */
+:root,
+html[data-palette="fresh"] {
+  --primary: #10b981;
+  --primary-strong: #059669;
+  --primary-soft: rgba(16, 185, 129, 0.12);
+  --accent: #14b8a6;
+  --gradient: linear-gradient(135deg, #10b981 0%, #0ea5a4 55%, #0891b2 100%);
+  --ring: rgba(16, 185, 129, 0.35);
+  /* Fresh: an airy dot grid. */
+  --pattern: radial-gradient(var(--pattern-ink) 1.6px, transparent 1.7px);
+  --pattern-size: 22px 22px;
+  --pattern-pos: 0 0;
+}
+html[data-palette="premium"] {
+  --primary: #7c5cff;
+  --primary-strong: #6137f5;
+  --primary-soft: rgba(124, 92, 255, 0.14);
+  --accent: #d4a24a;
+  --gradient: linear-gradient(135deg, #7c5cff 0%, #8b5cf6 50%, #a855f7 100%);
+  --ring: rgba(124, 92, 255, 0.38);
+  /* Premium: fine diagonal pinstripe. */
+  --pattern: repeating-linear-gradient(
+    45deg,
+    var(--pattern-ink) 0,
+    var(--pattern-ink) 1px,
+    transparent 1px,
+    transparent 9px
+  );
+  --pattern-size: auto;
+  --pattern-pos: 0 0;
+}
+html[data-palette="warm"] {
+  --primary: #f97316;
+  --primary-strong: #ea580c;
+  --primary-soft: rgba(249, 115, 22, 0.14);
+  --accent: #f43f5e;
+  --gradient: linear-gradient(135deg, #fb923c 0%, #f97316 50%, #f43f5e 100%);
+  --ring: rgba(249, 115, 22, 0.36);
+  /* Warm: larger scattered soft circles (two offset layers). */
+  --pattern:
+    radial-gradient(var(--pattern-ink) 3px, transparent 3.5px),
+    radial-gradient(var(--pattern-ink-2) 2px, transparent 2.5px);
+  --pattern-size: 54px 54px, 54px 54px;
+  --pattern-pos: 0 0, 27px 27px;
+}
+html[data-palette="calm"] {
+  --primary: #2f6fed;
+  --primary-strong: #1d4ed8;
+  --primary-soft: rgba(47, 111, 237, 0.13);
+  --accent: #0ea5e9;
+  --gradient: linear-gradient(135deg, #2f6fed 0%, #3b82f6 55%, #0ea5e9 100%);
+  --ring: rgba(47, 111, 237, 0.35);
+  /* Calm: orderly crosshatch grid. */
+  --pattern:
+    repeating-linear-gradient(0deg, var(--pattern-ink) 0, var(--pattern-ink) 1px, transparent 1px, transparent 26px),
+    repeating-linear-gradient(90deg, var(--pattern-ink) 0, var(--pattern-ink) 1px, transparent 1px, transparent 26px);
+  --pattern-size: auto;
+  --pattern-pos: 0 0;
 }
 
 * {
@@ -52,7 +130,11 @@ body,
 
 body {
   font-family: var(--font);
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: var(--pattern, none);
+  background-size: var(--pattern-size, auto);
+  background-position: var(--pattern-pos, 0 0);
+  background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -101,7 +183,7 @@ label {
 }
 
 .sidebar {
-  width: 220px;
+  width: 230px;
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
@@ -113,32 +195,50 @@ label {
 }
 
 .sidebar .brand {
-  font-size: 18px;
-  font-weight: 700;
-  padding: 0 10px 20px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  padding: 2px 10px 22px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+/* Gradient logo mark next to the wordmark. */
+.sidebar .brand .brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--gradient);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 16px;
+  box-shadow: 0 4px 12px var(--ring);
+  flex-shrink: 0;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 11px;
+  padding: 11px 13px;
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--text-muted);
   font-size: 14px;
-  margin-bottom: 2px;
+  font-weight: 600;
+  margin-bottom: 3px;
+  transition: background 0.15s, color 0.15s;
 }
 
 .nav-link:hover {
   background: var(--surface-2);
+  color: var(--text);
 }
 
 .nav-link.active {
-  background: var(--primary);
-  color: var(--primary-contrast);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
 }
 
 .content {
@@ -216,24 +316,35 @@ label {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 9px 14px;
+  padding: 10px 15px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
 }
 
 .btn:hover {
   background: var(--surface-2);
+  border-color: var(--text-muted);
+}
+
+.btn:active {
+  transform: translateY(1px);
 }
 
 .btn.primary {
-  background: var(--primary);
-  color: var(--primary-contrast);
-  border-color: var(--primary);
+  background: var(--gradient);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--ring);
+}
+
+.btn.primary:hover {
+  filter: brightness(1.05);
 }
 
 .btn.danger {
@@ -245,6 +356,7 @@ label {
 .btn.ghost {
   background: transparent;
   border-color: transparent;
+  color: var(--text-muted);
 }
 
 .btn.sm {
@@ -620,4 +732,43 @@ label {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ---- Theme (palette) picker ---- */
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.palette-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+
+.palette-option:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.palette-option.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.palette-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
