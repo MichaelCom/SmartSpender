@@ -1,0 +1,63 @@
+# SmartSpender Web — local Docker stack.
+#
+#   cd webapp && docker compose up --build
+#
+# Services:
+#   db       Postgres 16, schema loaded from db/init.sql on first boot
+#   api      Node + TypeScript REST API on http://localhost:4000
+#   frontend React (Vite) app on http://localhost:5173
+#
+# The web app is a standalone, local counterpart to the offline Flutter mobile
+# app. The two never talk over the network; the only bridge is the JSON backup
+# file (Import/Export in the web Settings screen).
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartspender}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartspender}
+      POSTGRES_DB: ${POSTGRES_DB:-smartspender}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # Uncomment to load demo data on first boot:
+      # - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartspender} -d ${POSTGRES_DB:-smartspender}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+    environment:
+      PORT: 4000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-smartspender}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartspender}
+      POSTGRES_DB: ${POSTGRES_DB:-smartspender}
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the Vite build. The browser (on the host) reaches the API
+        # at localhost:4000, NOT the compose-internal hostname.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  db_data:
