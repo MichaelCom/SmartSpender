@@ -13,6 +13,8 @@ import {
   transactionJson,
 } from "../db/mappers";
 import { badRequest, wrap } from "../http";
+import { applyBackup, type BackupDoc } from "../db/apply-backup";
+import { buildDemoBackup } from "../demo/demo-data";
 
 export const bridgeRouter = Router();
 
@@ -44,135 +46,42 @@ bridgeRouter.post(
         "categories, transactions and budgets must all be arrays"
       );
     }
-    const recurringIn = isArray(body.recurring) ? body.recurring : [];
 
-    const client = await pool.connect();
-    let categoriesImported = 0;
-    let transactionsImported = 0;
-    let budgetsImported = 0;
-    try {
-      await client.query("BEGIN");
-
-      // REPLACE: clear all tables. Order respects FKs (children first).
-      await client.query("DELETE FROM transactions");
-      await client.query("DELETE FROM budgets");
-      await client.query("DELETE FROM recurring_transactions");
-      await client.query("DELETE FROM categories");
-
-      // --- Categories: insert and build old-id -> new-id map ---
-      const catMap = new Map<number, number>();
-      for (const c of body.categories) {
-        if (c == null || typeof c !== "object") continue;
-        const type = c.type === "income" ? "income" : "expense";
-        const createdAt = c.createdAt ? new Date(c.createdAt) : new Date();
-        const { rows } = await client.query(
-          `INSERT INTO categories (name, type, color, icon, created_at)
-           VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-          [c.name ?? "", type, c.color ?? null, c.icon ?? null, createdAt]
-        );
-        if (c.id != null) catMap.set(Number(c.id), rows[0].id);
-        categoriesImported++;
-      }
-
-      // --- Recurring (web extension): insert first so txns can FK them ---
-      // Mobile v1 backups never contain this; absent => simply skipped.
-      const recMap = new Map<number, number>();
-      for (const r of recurringIn) {
-        if (r == null || typeof r !== "object") continue;
-        const type = r.type === "income" ? "income" : "expense";
-        const freq = ["daily", "weekly", "monthly", "yearly"].includes(
-          r.frequency
-        )
-          ? r.frequency
-          : "monthly";
-        const remappedCat =
-          r.categoryId != null && catMap.has(Number(r.categoryId))
-            ? catMap.get(Number(r.categoryId))
-            : null;
-        const { rows } = await client.query(
-          `INSERT INTO recurring_transactions
-             (amount, description, category_id, type, frequency, start_date,
-              end_date, last_generated_date, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-          [
-            Number(r.amount ?? 0),
-            r.description ?? null,
-            remappedCat,
-            type,
-            freq,
-            r.startDate ? new Date(r.startDate) : new Date(),
-            r.endDate ? new Date(r.endDate) : null,
-            r.lastGeneratedDate ? new Date(r.lastGeneratedDate) : null,
-            r.createdAt ? new Date(r.createdAt) : new Date(),
-          ]
-        );
-        if (r.id != null) recMap.set(Number(r.id), rows[0].id);
-      }
-
-      // --- Transactions: remap categoryId (unknown/absent -> null) ---
-      for (const t of body.transactions) {
-        if (t == null || typeof t !== "object") continue;
-        const type = t.type === "income" ? "income" : "expense";
-        let catId: number | null = null;
-        if (t.categoryId != null && catMap.has(Number(t.categoryId))) {
-          catId = catMap.get(Number(t.categoryId))!;
-        }
-        let recId: number | null = null;
-        if (t.recurringId != null && recMap.has(Number(t.recurringId))) {
-          recId = recMap.get(Number(t.recurringId))!;
-        }
-        await client.query(
-          `INSERT INTO transactions
-             (amount, description, category_id, date, type, created_at, recurring_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [
-            Number(t.amount ?? 0),
-            t.description ?? null,
-            catId,
-            t.date ? new Date(t.date) : new Date(),
-            type,
-            t.createdAt ? new Date(t.createdAt) : new Date(),
-            recId,
-          ]
-        );
-        transactionsImported++;
-      }
-
-      // --- Budgets: skip those whose category is missing ---
-      for (const b of body.budgets) {
-        if (b == null || typeof b !== "object") continue;
-        if (b.categoryId == null || !catMap.has(Number(b.categoryId))) continue;
-        const period = ["weekly", "monthly", "yearly"].includes(b.period)
-          ? b.period
-          : "monthly";
-        await client.query(
-          `INSERT INTO budgets
-             (category_id, amount, period, start_date, end_date, created_at, description)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [
-            catMap.get(Number(b.categoryId))!,
-            Number(b.amount ?? 0),
-            period,
-            b.startDate ? new Date(b.startDate) : new Date(),
-            b.endDate ? new Date(b.endDate) : new Date(),
-            b.createdAt ? new Date(b.createdAt) : new Date(),
-            b.description ?? null,
-          ]
-        );
-        budgetsImported++;
-      }
-
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
-
-    res.json({ categoriesImported, transactionsImported, budgetsImported });
+    const result = await replaceAll(body as BackupDoc);
+    res.json({
+      categoriesImported: result.categoriesImported,
+      transactionsImported: result.transactionsImported,
+      budgetsImported: result.budgetsImported,
+      recurringImported: result.recurringImported,
+    });
   })
 );
+
+// POST /seed -> REPLACE all data with generated demo data (dev/demo helper).
+bridgeRouter.post(
+  "/seed",
+  wrap(async (_req, res) => {
+    const doc = buildDemoBackup();
+    const result = await replaceAll(doc);
+    res.json(result);
+  })
+);
+
+// Shared: run applyBackup inside a transaction with rollback on error.
+async function replaceAll(doc: BackupDoc) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await applyBackup(client, doc);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 // GET /export -> schemaVersion 2 document + optional "recurring" (web extension)
 bridgeRouter.get(

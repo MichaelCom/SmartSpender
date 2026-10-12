@@ -122,6 +122,7 @@ export interface ImportResult {
   categoriesImported: number;
   transactionsImported: number;
   budgetsImported: number;
+  recurringImported?: number;
 }
 
 /** The mobile-compatible backup document (schemaVersion 1). */

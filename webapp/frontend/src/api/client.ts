@@ -160,6 +160,7 @@ export const DataApi = {
   exportCsvUrl: () => `${BASE_URL}/export/transactions.csv`,
   import: (doc: unknown) =>
     request<ImportResult>("/import", { method: "POST", body: JSON.stringify(doc) }),
+  seed: () => request<ImportResult>("/seed", { method: "POST" }),
   clear: () => request<void>("/data", { method: "DELETE" }),
 };
 

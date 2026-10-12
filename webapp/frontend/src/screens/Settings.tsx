@@ -167,6 +167,22 @@ function DataSection() {
     }
   };
 
+  const loadDemo = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await DataApi.seed();
+      setStatus(
+        `Loaded demo data: ${res.categoriesImported} categories, ${res.transactionsImported} transactions, ${res.budgetsImported} budgets. Reloading…`,
+      );
+      // Full data replacement — reload so every screen reflects it.
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="card">
       <h2 className="card-title">Data</h2>
@@ -185,6 +201,9 @@ function DataSection() {
       )}
 
       <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+        <button className="btn" onClick={loadDemo} disabled={busy}>
+          ✨ Load Demo Data
+        </button>
         <button className="btn" onClick={exportJson}>
           ⬇ Export JSON
         </button>
