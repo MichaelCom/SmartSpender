@@ -1,14 +1,27 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AnalyticsApi, BudgetsApi, CategoriesApi } from "../api/client";
+import { AnalyticsApi, BudgetsApi, CategoriesApi, TransactionsApi } from "../api/client";
 import { useAsync } from "../hooks/useAsync";
 import { useSettings } from "../context/SettingsContext";
 import { CurrencyFormatter } from "../lib/currency";
 import { monthStart, monthEnd, toIso, formatMonth } from "../lib/dates";
 import { iconEmoji } from "../lib/icons";
-import { Spinner, ErrorBanner, Empty } from "../components/common";
+import {
+  Spinner,
+  ErrorBanner,
+  Empty,
+  Donut,
+  Sparkline,
+  StatTile,
+  ProgressBar,
+  Badge,
+} from "../components/common";
 import { InsightCard } from "../components/InsightCard";
 import { TransactionForm } from "../components/TransactionForm";
+
+/** Legend/donut colours — resolved via tokens by the shared Donut, but the
+ *  category series uses this fixed ramp (contract §CHARTS). */
+const CAT_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#64748b"];
 
 export function Dashboard() {
   const { currencySymbol, budgetAlertThreshold } = useSettings();
@@ -28,22 +41,67 @@ export function Dashboard() {
   const budgets = useAsync(() => BudgetsApi.list(), [reloadKey]);
   const forecast = useAsync(() => AnalyticsApi.forecast(), [reloadKey]);
   const categories = useAsync(() => CategoriesApi.list(), []);
+  const recent = useAsync(
+    () => TransactionsApi.list({ from, to }),
+    [from, to, reloadKey],
+  );
 
   const fmt = (n: number) => CurrencyFormatter.format(currencySymbol, n);
+  const fmtSigned = (n: number, income: boolean) =>
+    CurrencyFormatter.formatSigned(currencySymbol, n, income);
 
-  const topCategories = Object.entries(byCat.data ?? {})
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  const income = summary.data?.income ?? 0;
+  const expenses = summary.data?.expenses ?? 0;
+  const balance = summary.data?.balance ?? 0;
+  const savingsRate = income > 0 ? (balance / income) * 100 : 0;
+
+  // Donut data — top 5 categories + "Other".
+  const donutData = useMemo(() => {
+    const entries = Object.entries(byCat.data ?? {})
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1]);
+    const top = entries.slice(0, 5);
+    const otherTotal = entries.slice(5).reduce((s, [, v]) => s + v, 0);
+    const data = top.map(([label, value], i) => ({
+      label,
+      value,
+      color: CAT_COLORS[i % CAT_COLORS.length],
+    }));
+    if (otherTotal > 0) {
+      data.push({ label: "Other", value: otherTotal, color: "#64748b" });
+    }
+    return data;
+  }, [byCat.data]);
+
+  // 30-day spend flow for the hero sparkline (bucketed by day of month).
+  const sparkValues = useMemo(() => {
+    const days = monthEnd().getDate();
+    const buckets = new Array(days).fill(0);
+    for (const t of recent.data ?? []) {
+      if (t.type !== "expense") continue;
+      const d = new Date(t.date).getDate() - 1;
+      if (d >= 0 && d < days) buckets[d] += t.amount;
+    }
+    return buckets;
+  }, [recent.data]);
 
   const budgetAlerts = (budgets.data ?? [])
     .map((b) => {
       const f = forecast.data?.budgets.find((x) => x.budget.id === b.id);
       const spent = f?.spentSoFar ?? 0;
       const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
-      return { budget: b, spent, pct, exceeded: spent > b.amount };
+      const exceeded = spent > b.amount;
+      const nearing = !exceeded && pct >= budgetAlertThreshold;
+      return { budget: b, spent, pct, exceeded, nearing };
     })
-    .filter((x) => x.exceeded || x.pct >= budgetAlertThreshold)
-    .sort((a, b) => b.pct - a.pct);
+    .filter((x) => x.exceeded || x.nearing)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 4);
+
+  const recentRows = (recent.data ?? [])
+    .slice()
+    .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+    .slice(0, 6);
 
   const loading = summary.loading || byCat.loading;
 
@@ -52,11 +110,13 @@ export function Dashboard() {
       <div className="spread">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-sub">{formatMonth(new Date())}</p>
+          <p className="page-sub">{formatMonth(new Date())} · Overview</p>
         </div>
-        <button className="btn primary" onClick={() => setShowAdd(true)}>
-          + Quick add
-        </button>
+        <div className="header-actions">
+          <button className="btn primary" onClick={() => setShowAdd(true)}>
+            ＋ Quick add
+          </button>
+        </div>
       </div>
 
       <ErrorBanner message={summary.error || byCat.error} />
@@ -65,79 +125,181 @@ export function Dashboard() {
         <Spinner />
       ) : (
         <>
+          {/* Hero balance */}
+          <section className="hero">
+            <div className="inner">
+              <div>
+                <div className="lbl">Balance remaining</div>
+                <div className="bal">{fmt(balance)}</div>
+                <span className="delta">
+                  {balance >= 0 ? "▲" : "▼"}{" "}
+                  {income > 0 ? Math.round((balance / income) * 100) : 0}% of income kept
+                </span>
+              </div>
+              <div className="hero-split">
+                <div className="hero-mini">
+                  <div className="lbl">Income</div>
+                  <div className="v">{fmt(income)}</div>
+                </div>
+                <div className="hero-mini">
+                  <div className="lbl">Spent</div>
+                  <div className="v">{fmt(expenses)}</div>
+                </div>
+                <div className="hero-mini">
+                  <div className="lbl">30-day flow</div>
+                  <Sparkline values={sparkValues} />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Stat tiles */}
           <div className="stat-grid">
-            <div className="stat">
-              <div className="label">Income</div>
-              <div className="value income">{fmt(summary.data?.income ?? 0)}</div>
-            </div>
-            <div className="stat">
-              <div className="label">Expenses</div>
-              <div className="value expense">{fmt(summary.data?.expenses ?? 0)}</div>
-            </div>
-            <div className="stat hero">
-              <div className="label">Balance</div>
-              <div className="value">{fmt(summary.data?.balance ?? 0)}</div>
-            </div>
+            <StatTile label="Income" value={fmt(income)} icon="↓" iconKind="inc" />
+            <StatTile label="Expenses" value={fmt(expenses)} icon="↑" iconKind="exp" />
+            <StatTile
+              label="Savings rate"
+              value={`${savingsRate.toFixed(1)}%`}
+              icon="◎"
+              iconKind="sav"
+            />
+            <StatTile
+              label="Balance"
+              value={fmt(balance)}
+              icon="∑"
+              iconKind="info"
+            />
           </div>
 
           {topInsight.data && (
-            <div className="section-gap">
-              <InsightCard
-                insight={topInsight.data}
-                onClick={() => navigate("/reports?tab=insights")}
-              />
-            </div>
+            <InsightCard
+              insight={topInsight.data}
+              onClick={() => navigate("/reports?tab=insights")}
+            />
           )}
 
-          <div className="grid-2 section-gap">
+          {/* Two-column: donut + budget alerts */}
+          <div className="grid-2">
             <div className="card">
-              <h2 className="card-title">Top categories</h2>
-              {topCategories.length === 0 ? (
+              <div className="card-head">
+                <h2 className="card-title">Spending by category</h2>
+                <a className="link" onClick={() => navigate("/reports")}>
+                  View report →
+                </a>
+              </div>
+              {donutData.length === 0 ? (
                 <Empty text="No expenses this month." />
               ) : (
-                <div className="list">
-                  {topCategories.map(([name, amount]) => (
-                    <div className="list-item" key={name}>
-                      <div className="grow">
-                        <div className="title">{name}</div>
+                <div className="donut-wrap">
+                  <Donut
+                    data={donutData}
+                    centerLabel="Total spent"
+                    centerValue={fmt(expenses)}
+                  />
+                  <div className="legend">
+                    {donutData.map((d) => (
+                      <div className="leg" key={d.label}>
+                        <span className="dot" style={{ background: d.color }} />
+                        <span className="nm">{d.label}</span>
+                        <span className="vl">{fmt(d.value)}</span>
                       </div>
-                      <div className="amount expense">{fmt(amount)}</div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="card">
-              <h2 className="card-title">Budget alerts</h2>
+              <div className="card-head">
+                <h2 className="card-title">Budget alerts</h2>
+                <a className="link" onClick={() => navigate("/budgets")}>
+                  Manage →
+                </a>
+              </div>
               {budgets.loading ? (
                 <Spinner />
               ) : budgetAlerts.length === 0 ? (
                 <Empty text="All budgets on track." />
               ) : (
                 <div className="list">
-                  {budgetAlerts.map(({ budget, spent, pct, exceeded }) => (
-                    <div className="list-item" key={budget.id}>
-                      <div
-                        className="icon-chip"
-                        style={{ background: budget.categoryColor ?? "#888" }}
-                      >
-                        {iconEmoji(budget.categoryIcon)}
+                  {budgetAlerts.map(({ budget, spent, pct, exceeded, nearing }) => (
+                    <div className="bud" key={budget.id}>
+                      <div className="line">
+                        <span
+                          className="chip-ic"
+                          style={{
+                            background: budget.categoryColor ?? "#888",
+                            width: 28,
+                            height: 28,
+                            fontSize: 14,
+                          }}
+                        >
+                          {iconEmoji(budget.categoryIcon)}
+                        </span>
+                        <span className="nm">{budget.categoryName ?? "Budget"}</span>
+                        <Badge kind={exceeded ? "over" : nearing ? "near" : "ok"}>
+                          {exceeded ? "Over" : nearing ? "Nearing" : "On track"}
+                        </Badge>
                       </div>
-                      <div className="grow">
-                        <div className="title">{budget.categoryName ?? "Budget"}</div>
-                        <div className="sub">
-                          {fmt(spent)} / {fmt(budget.amount)} ({Math.round(pct)}%)
-                        </div>
+                      <ProgressBar
+                        value={spent}
+                        max={budget.amount}
+                        state={exceeded ? "over" : nearing ? "near" : "ok"}
+                      />
+                      <div className="meta">
+                        <span>
+                          {fmt(spent)} / {fmt(budget.amount)}
+                        </span>
+                        <span>{Math.round(pct)}%</span>
                       </div>
-                      <span className={`badge`} style={{ color: exceeded ? "var(--expense)" : "var(--warning)" }}>
-                        {exceeded ? "Over" : "Nearing"}
-                      </span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Recent transactions */}
+          <div className="card" style={{ marginTop: 18 }}>
+            <div className="card-head">
+              <h2 className="card-title">Recent transactions</h2>
+              <a className="link" onClick={() => navigate("/transactions")}>
+                See all →
+              </a>
+            </div>
+            {recent.loading ? (
+              <Spinner />
+            ) : recentRows.length === 0 ? (
+              <Empty text="No transactions this month." />
+            ) : (
+              <div className="list">
+                {recentRows.map((t) => (
+                  <div className="row" key={t.id}>
+                    <span
+                      className="chip-ic"
+                      style={{ background: t.categoryColor ?? "#64748b" }}
+                    >
+                      {iconEmoji(t.categoryIcon)}
+                    </span>
+                    <div className="grow">
+                      <div className="t">
+                        {t.description?.trim() || t.categoryName || "Transaction"}
+                      </div>
+                      <div className="sub">
+                        {t.categoryName ?? "Uncategorised"} ·{" "}
+                        {new Date(t.date).toLocaleDateString(undefined, {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </div>
+                    </div>
+                    <span className={`amount ${t.type}`}>
+                      {fmtSigned(t.amount, t.type === "income")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

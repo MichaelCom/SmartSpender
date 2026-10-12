@@ -1,3 +1,12 @@
+/* ============================================================
+   SmartSpender — web app styling (SINGLE OWNER: shell agent).
+   Ported from Docs/smartspender-mockups/theme.css + the per-mockup
+   refinements (hero, stat tiles, donut, legend, chart-box, pager…).
+   Mode (light/dark) x 4 palettes (fresh/premium/warm/calm). Finance
+   semantics (income/expense/warning/info) stay constant across palettes.
+   Screens apply these classes; dynamic values (category colour, bar
+   width %, chart colours) are inline styles in the screens.
+   ============================================================ */
 :root {
   --radius: 16px;
   --radius-sm: 10px;
@@ -137,6 +146,7 @@ body {
   background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 a {
@@ -149,6 +159,9 @@ button {
   cursor: pointer;
 }
 
+/* ============================================================
+   FORM CONTROLS
+   ============================================================ */
 input,
 select,
 textarea {
@@ -158,7 +171,7 @@ textarea {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 9px 11px;
+  padding: 10px 12px;
   outline: none;
   width: 100%;
 }
@@ -167,6 +180,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 label {
@@ -174,54 +188,58 @@ label {
   font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 6px;
+  font-weight: 600;
 }
 
-/* ---- Layout ---- */
+/* ============================================================
+   APP SHELL / SIDEBAR
+   ============================================================ */
 .app {
   display: flex;
   min-height: 100vh;
 }
 
 .sidebar {
-  width: 230px;
+  width: 244px;
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  padding: 20px 14px;
+  padding: 22px 14px;
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.sidebar .brand {
+.brand {
   font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.02em;
   padding: 2px 10px 22px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
 }
 
 /* Gradient logo mark next to the wordmark. */
-.sidebar .brand .brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   background: var(--gradient);
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 16px;
-  box-shadow: 0 4px 12px var(--ring);
+  font-size: 17px;
+  box-shadow: 0 6px 16px var(--ring);
   flex-shrink: 0;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   padding: 11px 13px;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
@@ -229,6 +247,8 @@ label {
   font-weight: 600;
   margin-bottom: 3px;
   transition: background 0.15s, color 0.15s;
+  position: relative;
+  cursor: pointer;
 }
 
 .nav-link:hover {
@@ -241,78 +261,105 @@ label {
   color: var(--primary-strong);
 }
 
+/* Gradient accent bar on the active nav item. */
+.nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 9px;
+  bottom: 9px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--gradient);
+}
+
+.nav-ico {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Sidebar footer: gradient avatar + account label. */
+.side-foot {
+  margin-top: auto;
+  padding: 12px 10px 2px;
+  border-top: 1px solid var(--border);
+}
+
+.side-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--gradient);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.side-user .nm {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.side-user .em {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   CONTENT / PAGE HEADER
+   ============================================================ */
 .content {
   flex: 1;
-  padding: 24px 28px;
-  max-width: 1100px;
+  padding: 26px 30px;
+  max-width: 1140px;
   margin: 0 auto;
   width: 100%;
 }
 
+.spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .page-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
 }
 
 .page-sub {
   color: var(--text-muted);
   font-size: 14px;
-  margin: 0 0 20px;
+  margin: 3px 0 0;
 }
 
-/* ---- Cards ---- */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 16px;
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-.card + .card {
-  margin-top: 16px;
+.section-gap {
+  margin-top: 18px;
 }
 
-.card-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0 0 12px;
-}
-
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 14px;
-}
-
-.stat {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 16px;
-}
-
-.stat .label {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.stat .value {
-  font-size: 24px;
-  font-weight: 700;
-  margin-top: 4px;
-}
-
-.value.income {
-  color: var(--income);
-}
-.value.expense {
-  color: var(--expense);
-}
-
-/* ---- Buttons ---- */
+/* ============================================================
+   BUTTONS
+   ============================================================ */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -324,7 +371,7 @@ label {
   padding: 10px 15px;
   font-size: 14px;
   font-weight: 600;
-  transition: transform 0.12s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s, border-color 0.15s, filter 0.15s;
 }
 
 .btn:hover {
@@ -340,11 +387,22 @@ label {
   background: var(--gradient);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 4px 14px var(--ring);
+  box-shadow: 0 6px 16px var(--ring);
 }
 
 .btn.primary:hover {
   filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn.ghost:hover {
+  background: var(--surface-2);
 }
 
 .btn.danger {
@@ -353,17 +411,502 @@ label {
   border-color: var(--expense);
 }
 
-.btn.ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-muted);
+.btn.danger:hover {
+  filter: brightness(1.05);
+  background: var(--expense);
+  border-color: var(--expense);
 }
 
 .btn.sm {
-  padding: 5px 9px;
+  padding: 6px 10px;
   font-size: 12px;
 }
 
+/* ============================================================
+   CARDS & GRIDS
+   ============================================================ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.card + .card {
+  margin-top: 16px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.link {
+  font-size: 13px;
+  color: var(--primary-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+/* ============================================================
+   HERO BALANCE CARD (Dashboard)
+   Decorative circles via ::before/::after; sits on the gradient.
+   ============================================================ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 26px 28px;
+  margin: 22px 0;
+  background: var(--gradient);
+  color: #fff;
+  box-shadow: 0 14px 40px var(--ring);
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  right: 40px;
+  bottom: -90px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hero .inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.hero .lbl {
+  font-size: 13px;
+  opacity: 0.9;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.hero .bal {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero .delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.hero-split {
+  display: flex;
+  gap: 26px;
+  align-items: flex-end;
+}
+
+.hero-mini .lbl {
+  font-size: 12px;
+}
+
+.hero-mini .v {
+  font-size: 21px;
+  font-weight: 700;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sparkline host sitting on the gradient hero. Recharts fills this box. */
+.spark {
+  width: 180px;
+  height: 52px;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   STAT TILES
+   ============================================================ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat .top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat .label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Icon chip in a stat tile; colour variants below. */
+.stat .ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+}
+
+.stat .value {
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.stat .value.income {
+  color: var(--income);
+}
+.stat .value.expense {
+  color: var(--expense);
+}
+
+.stat .trend {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trend.up {
+  color: var(--income);
+}
+.trend.down {
+  color: var(--expense);
+}
+
+.ic.inc {
+  background: color-mix(in srgb, var(--income) 15%, transparent);
+  color: var(--income);
+}
+.ic.exp {
+  background: color-mix(in srgb, var(--expense) 15%, transparent);
+  color: var(--expense);
+}
+.ic.sav {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.ic.info {
+  background: color-mix(in srgb, var(--info) 15%, transparent);
+  color: var(--info);
+}
+
+/* ============================================================
+   DONUT + LEGEND (shared Donut wrapper renders Recharts into .donut)
+   ============================================================ */
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.donut {
+  width: 150px;
+  height: 150px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Centre overlay (total) sits above the Recharts donut. */
+.donut .ctr {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.donut .ctr .s {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.donut .ctr .b {
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  flex: 1;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.leg .nm {
+  flex: 1;
+  font-weight: 600;
+}
+
+.leg .vl {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ============================================================
+   LISTS / ROWS
+   ============================================================ */
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+/* Category-colour icon chip (colour set inline per-category). */
+.chip-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.row .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.row .t {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.row .sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.amount {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.amount.expense {
+  color: var(--expense);
+}
+.amount.income {
+  color: var(--income);
+}
+
+/* ============================================================
+   BUDGET PROGRESS ROW (Dashboard alerts + Budgets)
+   ============================================================ */
+.bud {
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bud:last-child {
+  border-bottom: none;
+}
+
+.bud .line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.bud .nm {
+  font-weight: 700;
+  font-size: 14px;
+  flex: 1;
+}
+
+.bud .meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   CHIPS / FILTERS
+   ============================================================ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.chip.on {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  border-color: transparent;
+}
+
+/* Suggestion / anomaly chip variants (TransactionForm). */
+.chip.suggest {
+  background: color-mix(in srgb, var(--info) 14%, transparent);
+  border-color: transparent;
+  color: var(--info);
+}
+
+.chip.anomaly {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  border-color: transparent;
+  color: var(--warning);
+}
+
+/* ============================================================
+   BADGES (budget status)
+   ============================================================ */
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.badge.over {
+  background: color-mix(in srgb, var(--expense) 15%, transparent);
+  color: var(--expense);
+}
+.badge.near {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--warning);
+}
+.badge.ok {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+/* ============================================================
+   PROGRESS BAR (bar colour set inline per state)
+   ============================================================ */
+.progress {
+  height: 9px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+  position: relative;
+}
+
+.progress .bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s;
+  background: var(--primary);
+}
+
+/* Optional forecast marker (Budgets). */
+.progress .forecast-marker {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 15px;
+  background: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ============================================================
+   TOOLBAR / FILTERS / SEARCH
+   ============================================================ */
 .toolbar {
   display: flex;
   gap: 10px;
@@ -379,170 +922,28 @@ label {
 
 .toolbar .field.grow {
   flex: 1;
-  min-width: 160px;
+  min-width: 180px;
 }
 
-/* ---- Lists ---- */
-.list {
-  display: flex;
-  flex-direction: column;
-}
-
-.list-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 4px;
-  border-bottom: 1px solid var(--border);
-}
-
-.list-item:last-child {
-  border-bottom: none;
-}
-
-.list-item .icon-chip {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  flex-shrink: 0;
-  color: #fff;
-}
-
-.list-item .grow {
-  flex: 1;
-  min-width: 0;
-}
-
-.list-item .title {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.list-item .sub {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.amount {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.amount.income {
-  color: var(--income);
-}
-.amount.expense {
-  color: var(--expense);
-}
-
-/* ---- Chips / badges ---- */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-.chip.suggest {
-  background: color-mix(in srgb, var(--info) 14%, transparent);
-  border-color: color-mix(in srgb, var(--info) 40%, transparent);
-  color: var(--info);
-  cursor: pointer;
-}
-
-.chip.anomaly {
-  background: color-mix(in srgb, var(--warning) 16%, transparent);
-  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
-  color: var(--warning);
-}
-
-.badge {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--text-muted);
-}
-
-/* ---- Progress ---- */
-.progress {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  overflow: hidden;
+.search {
   position: relative;
 }
 
-.progress .bar {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.2s;
+.search input {
+  padding-left: 34px;
 }
 
-.progress .forecast-marker {
+.search .mag {
   position: absolute;
-  top: -3px;
-  width: 2px;
-  height: 14px;
-  background: var(--text-muted);
-  opacity: 0.6;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
 }
 
-/* ---- Insight card ---- */
-.insight {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-}
-
-.insight .ico {
-  font-size: 22px;
-}
-
-.insight .txt .t {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.insight .txt .d {
-  font-size: 13px;
-}
-
-.insight.positive {
-  background: color-mix(in srgb, var(--positive) 10%, transparent);
-}
-.insight.positive .t {
-  color: var(--positive);
-}
-.insight.warning {
-  background: color-mix(in srgb, var(--warning) 12%, transparent);
-}
-.insight.warning .t {
-  color: var(--warning);
-}
-.insight.info {
-  background: color-mix(in srgb, var(--info) 10%, transparent);
-}
-.insight.info .t {
-  color: var(--info);
-}
-
-.insight.clickable {
-  cursor: pointer;
-}
-
-/* ---- Tabs ---- */
+/* ============================================================
+   TABS (Reports)
+   ============================================================ */
 .tabs {
   display: flex;
   gap: 4px;
@@ -552,14 +953,15 @@ label {
 }
 
 .tab {
-  padding: 10px 14px;
+  padding: 10px 15px;
   border: none;
   background: none;
   color: var(--text-muted);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .tab.active {
@@ -567,7 +969,54 @@ label {
   border-bottom-color: var(--primary);
 }
 
-/* ---- Modal ---- */
+/* ============================================================
+   CHART BOX (Reports chart container)
+   ============================================================ */
+.chart-box {
+  height: 300px;
+  width: 100%;
+}
+
+/* ============================================================
+   TABLE (uppercase muted headers, hover rows)
+   ============================================================ */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tbl th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tbl td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tbl tr:last-child td {
+  border-bottom: none;
+}
+
+.tbl tbody tr {
+  transition: background 0.12s;
+}
+
+.tbl tbody tr:hover {
+  background: var(--surface-2);
+}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -580,21 +1029,29 @@ label {
 
 .modal {
   background: var(--surface);
-  border-radius: var(--radius);
-  padding: 20px;
+  border-radius: var(--radius-lg);
+  padding: 22px;
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal h3 {
-  margin: 0 0 16px;
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.modal .msub {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 18px;
 }
 
 .form-row {
-  margin-bottom: 14px;
+  margin-bottom: 15px;
 }
 
 .form-grid {
@@ -607,10 +1064,47 @@ label {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
-/* ---- Pickers ---- */
+/* ============================================================
+   SEGMENTED CONTROL (income/expense toggle)
+   ============================================================ */
+.seg {
+  display: flex;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 3px;
+}
+
+.seg button {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 9px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.seg button.on-inc {
+  background: var(--surface);
+  color: var(--income);
+  box-shadow: var(--shadow);
+}
+
+.seg button.on-exp {
+  background: var(--surface);
+  color: var(--expense);
+  box-shadow: var(--shadow);
+}
+
+/* ============================================================
+   PICKERS (colour swatch + icon)
+   ============================================================ */
 .swatch-grid {
   display: flex;
   flex-wrap: wrap;
@@ -618,27 +1112,29 @@ label {
 }
 
 .swatch {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   border: 2px solid transparent;
   cursor: pointer;
 }
 
-.swatch.selected {
+.swatch.selected,
+.swatch.sel {
   border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface) inset;
 }
 
 .icon-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
 }
 
 .icon-pick {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
   display: grid;
   place-items: center;
   font-size: 18px;
@@ -647,24 +1143,212 @@ label {
   cursor: pointer;
 }
 
-.icon-pick.selected {
+.icon-pick.selected,
+.icon-pick.sel {
   border-color: var(--primary);
   background: var(--surface-2);
 }
 
-/* ---- Misc ---- */
-.row {
+/* ============================================================
+   TOGGLE SWITCH + SETTINGS ROW
+   ============================================================ */
+.switch {
+  width: 44px;
+  height: 25px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+}
+
+.switch.on {
+  background: var(--primary);
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.switch.on::after {
+  left: 21px;
+}
+
+.set-row {
   display: flex;
   align-items: center;
+  gap: 14px;
+  padding: 15px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.set-row:last-child {
+  border-bottom: none;
+}
+
+.set-row .grow {
+  flex: 1;
+}
+
+.set-row .t {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.set-row .d {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   PALETTE PICKER (Settings appearance)
+   ============================================================ */
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 10px;
 }
 
-.spread {
+.palette-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
 }
 
+.palette-option:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.palette-option.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.palette-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================================================
+   INSIGHT BANNER (InsightCard — kind-coloured)
+   ============================================================ */
+.insight {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 17px;
+  border-radius: var(--radius);
+}
+
+.insight .ico {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.insight .txt {
+  flex: 1;
+  min-width: 0;
+}
+
+.insight .txt .t {
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.insight .txt .d {
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.insight.positive {
+  background: color-mix(in srgb, var(--positive) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--positive) 25%, transparent);
+}
+.insight.positive .ico {
+  background: color-mix(in srgb, var(--positive) 18%, transparent);
+}
+.insight.positive .t {
+  color: var(--positive);
+}
+
+.insight.warning {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+}
+.insight.warning .ico {
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+}
+.insight.warning .t {
+  color: var(--warning);
+}
+
+.insight.info {
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info) 25%, transparent);
+}
+.insight.info .ico {
+  background: color-mix(in srgb, var(--info) 18%, transparent);
+}
+.insight.info .t {
+  color: var(--info);
+}
+
+.insight.clickable {
+  cursor: pointer;
+}
+
+/* ============================================================
+   PAGER (Transactions footer)
+   ============================================================ */
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pager .pages {
+  display: flex;
+  gap: 8px;
+}
+
+/* ============================================================
+   MISC HELPERS
+   ============================================================ */
 .muted {
   color: var(--text-muted);
 }
@@ -685,39 +1369,6 @@ label {
   margin-bottom: 16px;
 }
 
-.section-gap {
-  margin-top: 20px;
-}
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 820px) {
-  .app {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    height: auto;
-    position: static;
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-  }
-  .sidebar .brand {
-    display: none;
-  }
-  .grid-2 {
-    grid-template-columns: 1fr;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .spinner {
   width: 22px;
   height: 22px;
@@ -734,41 +1385,35 @@ label {
   }
 }
 
-/* ---- Theme (palette) picker ---- */
-.palette-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
-}
-
-.palette-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 2px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 600;
-  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
-}
-
-.palette-option:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow);
-}
-
-.palette-option.active {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--ring);
-}
-
-.palette-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  flex-shrink: 0;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 900px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .app {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    align-items: center;
+  }
+  .brand {
+    display: none;
+  }
+  .nav-link.active::before {
+    display: none;
+  }
+  .side-foot {
+    display: none;
+  }
 }

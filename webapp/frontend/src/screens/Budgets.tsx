@@ -6,11 +6,17 @@ import { useSettings } from "../context/SettingsContext";
 import { CurrencyFormatter } from "../lib/currency";
 import { daysElapsedInMonth, toDateInput, fromDateInput } from "../lib/dates";
 import { iconEmoji } from "../lib/icons";
-import { Spinner, ErrorBanner, Empty } from "../components/common";
+import {
+  Spinner,
+  ErrorBanner,
+  Empty,
+  ProgressBar,
+  Badge,
+} from "../components/common";
 import { Modal } from "../components/Modal";
 
 /** The month must have at least this many elapsed days before we show a
- *  forecast projection line (parity: run-rate is noisy very early in the month). */
+ *  forecast projection (parity: run-rate is noisy very early in the month). */
 const FORECAST_MIN_DAYS = 4;
 
 export function Budgets() {
@@ -33,119 +39,194 @@ export function Budgets() {
     refresh();
   };
 
+  const rows = useMemo(
+    () =>
+      (budgets.data ?? []).map((b) => {
+        const f = forecast.data?.budgets.find((x) => x.budget.id === b.id);
+        const spent = f?.spentSoFar ?? 0;
+        const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
+        const exceeded = spent > b.amount;
+        const nearing = !exceeded && pct >= budgetAlertThreshold;
+        const remaining = b.amount - spent;
+        return { budget: b, forecast: f, spent, pct, exceeded, nearing, remaining };
+      }),
+    [budgets.data, forecast.data, budgetAlertThreshold],
+  );
+
+  const totals = useMemo(() => {
+    const budgeted = rows.reduce((s, r) => s + r.budget.amount, 0);
+    const spent = rows.reduce((s, r) => s + r.spent, 0);
+    return { budgeted, spent, remaining: budgeted - spent };
+  }, [rows]);
+
   return (
     <>
       <div className="spread">
         <div>
           <h1 className="page-title">Budgets</h1>
-          <p className="page-sub">Track spending against limits</p>
+          <p className="page-sub">
+            {rows.length} active {rows.length === 1 ? "budget" : "budgets"}
+          </p>
         </div>
         <button className="btn primary" onClick={() => setAdding(true)}>
-          + Add
+          ＋ New budget
         </button>
       </div>
 
       <ErrorBanner message={budgets.error} />
 
       {budgets.loading ? (
-        <Spinner />
-      ) : (budgets.data ?? []).length === 0 ? (
-        <div className="card">
+        <div className="card section-gap">
+          <Spinner />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="card section-gap">
           <Empty text="No budgets yet. Add one to track a category." />
         </div>
       ) : (
-        <div className="list">
-          {budgets.data!.map((b) => {
-            const f = forecast.data?.budgets.find((x) => x.budget.id === b.id);
-            const spent = f?.spentSoFar ?? 0;
-            const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
-            const exceeded = spent > b.amount;
-            const nearing = !exceeded && pct >= budgetAlertThreshold;
-            const barColor = exceeded
-              ? "var(--expense)"
-              : nearing
-                ? "var(--warning)"
-                : "var(--income)";
-            const projectedPct =
-              f && b.amount > 0 ? (f.projectedTotal / b.amount) * 100 : null;
-            const projectedToExceed = f?.projectedToExceed ?? false;
+        <>
+          {/* Summary row */}
+          <div className="section-gap stat-grid">
+            <div className="card">
+              <div className="muted" style={{ fontSize: 13, fontWeight: 600 }}>
+                Total budgeted
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, marginTop: 8 }}>
+                {fmt(totals.budgeted)}
+              </div>
+            </div>
+            <div className="card">
+              <div className="muted" style={{ fontSize: 13, fontWeight: 600 }}>
+                Spent so far
+              </div>
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                  marginTop: 8,
+                  color: "var(--expense)",
+                }}
+              >
+                {fmt(totals.spent)}
+              </div>
+            </div>
+            <div className="card">
+              <div className="muted" style={{ fontSize: 13, fontWeight: 600 }}>
+                Remaining
+              </div>
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                  marginTop: 8,
+                  color:
+                    totals.remaining >= 0 ? "var(--income)" : "var(--expense)",
+                }}
+              >
+                {fmt(totals.remaining)}
+              </div>
+            </div>
+          </div>
 
-            return (
-              <div className="card" key={b.id} style={{ marginTop: 12 }}>
-                <div className="spread" style={{ marginBottom: 10 }}>
-                  <div className="row">
+          {/* Per-budget progress cards */}
+          <div
+            className="section-gap"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill,minmax(330px,1fr))",
+              gap: 16,
+            }}
+          >
+            {rows.map(
+              ({ budget: b, forecast: f, spent, pct, exceeded, nearing, remaining }) => {
+                const state = exceeded ? "over" : nearing ? "near" : "ok";
+                const projectedToExceed = f?.projectedToExceed ?? false;
+                return (
+                  <div className="card" key={b.id}>
                     <div
-                      className="icon-chip"
-                      style={{ background: b.categoryColor ?? "#888" }}
-                    >
-                      {iconEmoji(b.categoryIcon)}
-                    </div>
-                    <div>
-                      <div className="title">{b.categoryName ?? "Budget"}</div>
-                      <div className="sub">
-                        {b.period} · {fmt(spent)} of {fmt(b.amount)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <span
-                      className="badge"
                       style={{
-                        color: exceeded
-                          ? "var(--expense)"
-                          : nearing
-                            ? "var(--warning)"
-                            : "var(--text-muted)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        marginBottom: 12,
                       }}
                     >
-                      {exceeded ? "Over budget" : nearing ? "Nearing" : "On track"}
-                    </span>
-                    <button className="btn sm ghost" onClick={() => setEditing(b)}>
-                      Edit
-                    </button>
-                    <button className="btn sm ghost" onClick={() => del(b)}>
-                      🗑
-                    </button>
-                  </div>
-                </div>
+                      <span
+                        className="chip-ic"
+                        style={{ background: b.categoryColor ?? "#64748b" }}
+                      >
+                        {iconEmoji(b.categoryIcon)}
+                      </span>
+                      <div className="grow">
+                        <div className="t" style={{ fontWeight: 800, fontSize: 15 }}>
+                          {b.categoryName ?? "Budget"}
+                        </div>
+                        <div className="sub muted" style={{ fontSize: 12 }}>
+                          {fmt(spent)} of {fmt(b.amount)}
+                          {b.period ? ` · ${b.period}` : ""}
+                        </div>
+                      </div>
+                      <Badge kind={state}>
+                        {exceeded ? "Over" : nearing ? "Nearing" : "On track"}
+                      </Badge>
+                    </div>
 
-                <div className="progress">
-                  <div
-                    className="bar"
-                    style={{
-                      width: `${Math.min(pct, 100)}%`,
-                      background: barColor,
-                    }}
-                  />
-                  {showForecast && projectedPct != null && (
+                    <ProgressBar value={spent} max={b.amount} state={state} />
+
                     <div
-                      className="forecast-marker"
-                      style={{ left: `${Math.min(projectedPct, 100)}%` }}
-                      title={`Projected: ${fmt(f!.projectedTotal)}`}
-                    />
-                  )}
-                </div>
-
-                <div className="spread" style={{ marginTop: 8, fontSize: 12 }}>
-                  <span className="muted">{Math.round(pct)}% used</span>
-                  {showForecast && f && (
-                    <span
                       className="muted"
                       style={{
-                        color: projectedToExceed ? "var(--warning)" : undefined,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginTop: 8,
+                        fontSize: 12,
                       }}
                     >
-                      Projected {fmt(f.projectedTotal)}
-                      {projectedToExceed
-                        ? ` · over by ${fmt(f.projectedOverBy)}`
-                        : ""}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                      <span>{Math.round(pct)}% used</span>
+                      <span>
+                        {remaining >= 0
+                          ? `${fmt(remaining)} left`
+                          : `${fmt(Math.abs(remaining))} over`}
+                      </span>
+                    </div>
+
+                    {showForecast && f && (
+                      <div
+                        className="muted"
+                        style={{
+                          marginTop: 6,
+                          fontSize: 12,
+                          color: projectedToExceed ? "var(--warning)" : undefined,
+                        }}
+                      >
+                        Projected {fmt(f.projectedTotal)}
+                        {projectedToExceed
+                          ? ` · over by ${fmt(f.projectedOverBy)}`
+                          : ""}
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        marginTop: 12,
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <button className="btn ghost sm" onClick={() => setEditing(b)}>
+                        Edit
+                      </button>
+                      <button className="btn ghost sm" onClick={() => del(b)}>
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                );
+              },
+            )}
+          </div>
+        </>
       )}
 
       {(adding || editing) && categories.data && (
@@ -198,6 +279,7 @@ function BudgetForm({
   const [description, setDescription] = useState(existing?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { currencySymbol } = useSettings();
 
   const computedEnd = useMemo(
     () => periodBounds(period, fromDateInput(startDate)).end,
@@ -240,15 +322,16 @@ function BudgetForm({
 
   return (
     <Modal
-      title={existing ? "Edit budget" : "Add budget"}
+      title={existing ? "Edit budget" : "New budget"}
+      subtitle="Set a spending limit for a category"
       onClose={onClose}
       footer={
         <div className="modal-actions">
-          <button className="btn" onClick={onClose} disabled={saving}>
+          <button className="btn ghost" onClick={onClose} disabled={saving}>
             Cancel
           </button>
           <button className="btn primary" onClick={submit} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : "Save budget"}
           </button>
         </div>
       }
@@ -263,7 +346,7 @@ function BudgetForm({
           <option value="">Select…</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {iconEmoji(c.icon)} {c.name}
             </option>
           ))}
         </select>
@@ -271,14 +354,29 @@ function BudgetForm({
       <div className="form-grid">
         <div className="form-row">
           <label>Amount</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-          />
+          <div style={{ position: "relative" }}>
+            <span
+              style={{
+                position: "absolute",
+                left: 13,
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontWeight: 800,
+                color: "var(--text-muted)",
+              }}
+            >
+              {currencySymbol}
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              style={{ paddingLeft: 30 }}
+            />
+          </div>
         </div>
         <div className="form-row">
           <label>Period</label>
@@ -292,7 +390,11 @@ function BudgetForm({
       <div className="form-grid">
         <div className="form-row">
           <label>Start date</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
         </div>
         <div className="form-row">
           <label>End date (auto)</label>

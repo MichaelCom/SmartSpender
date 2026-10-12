@@ -24,10 +24,20 @@ export function Layout() {
             end={n.end}
             className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
           >
-            <span>{n.icon}</span>
+            <span className="nav-ico">{n.icon}</span>
             <span>{n.label}</span>
           </NavLink>
         ))}
+        {/* Sidebar footer: gradient avatar + account label. */}
+        <div className="side-foot">
+          <div className="side-user">
+            <div className="avatar">SS</div>
+            <div>
+              <div className="nm">SmartSpender</div>
+              <div className="em">Local account</div>
+            </div>
+          </div>
+        </div>
       </nav>
       <main className="content">
         <Outlet />

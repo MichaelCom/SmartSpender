@@ -1,18 +1,18 @@
 import { useRef, useState } from "react";
-import type { ThemeMode } from "../context/SettingsContext";
-import { useSettings } from "../context/SettingsContext";
-import { PALETTES } from "../context/SettingsContext";
+import { useSettings, resolveDark, PALETTES } from "../context/SettingsContext";
 import { AppCurrencies } from "../lib/currency";
 import { DataApi } from "../api/client";
 import type { BackupDocument, ImportResult } from "../api/types";
 import { Modal } from "../components/Modal";
 import { ErrorBanner } from "../components/common";
 
-const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-];
+/** Gradient swatches for the palette picker (mockup uses two-stop gradients). */
+const PALETTE_SWATCH: Record<string, string> = {
+  fresh: "linear-gradient(135deg,#10b981,#0891b2)",
+  premium: "linear-gradient(135deg,#7c5cff,#a855f7)",
+  warm: "linear-gradient(135deg,#fb923c,#f43f5e)",
+  calm: "linear-gradient(135deg,#2f6fed,#0ea5e9)",
+};
 
 export function Settings() {
   const {
@@ -26,82 +26,102 @@ export function Settings() {
     setBudgetAlertThreshold,
   } = useSettings();
 
+  const dark = resolveDark(themeMode);
+
   return (
     <>
       <h1 className="page-title">Settings</h1>
-      <p className="page-sub">Preferences and data</p>
+      <p className="page-sub">Preferences, appearance and data</p>
 
-      <div className="card">
-        <h2 className="card-title">Appearance</h2>
-        <div className="form-row">
-          <label>Mode</label>
-          <div className="row">
-            {THEME_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                className={`btn sm ${themeMode === o.value ? "primary" : ""}`}
-                onClick={() => setThemeMode(o.value)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+      {/* Appearance */}
+      <div className="card section-gap">
+        <h2 className="card-title" style={{ marginBottom: 14 }}>
+          Appearance
+        </h2>
+        <label>Colour palette</label>
+        <div className="palette-grid" style={{ marginBottom: 18 }}>
+          {PALETTES.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`palette-option${palette === p.id ? " active" : ""}`}
+              onClick={() => setPalette(p.id)}
+              aria-label={p.name}
+            >
+              <span
+                className="palette-swatch"
+                style={{ background: PALETTE_SWATCH[p.id] ?? p.swatch }}
+              />
+              {p.name}
+            </button>
+          ))}
         </div>
 
-        <div className="form-row" style={{ marginTop: 16 }}>
-          <label>Theme</label>
-          <div className="palette-grid">
-            {PALETTES.map((p) => (
-              <button
-                key={p.id}
-                className={`palette-option${palette === p.id ? " active" : ""}`}
-                onClick={() => setPalette(p.id)}
-                type="button"
-                aria-label={p.name}
-              >
-                <span
-                  className="palette-swatch"
-                  style={{ background: p.swatch }}
-                />
-                <span className="palette-name">{p.name}</span>
-              </button>
-            ))}
+        <div className="set-row">
+          <div className="grow">
+            <div className="t">Dark mode</div>
+            <div className="d">Switch between light and dark surfaces</div>
           </div>
+          <button
+            type="button"
+            className={`switch${dark ? " on" : ""}`}
+            role="switch"
+            aria-checked={dark}
+            aria-label="Dark mode"
+            onClick={() => setThemeMode(dark ? "light" : "dark")}
+          />
         </div>
       </div>
 
-      <div className="card">
-        <h2 className="card-title">Currency</h2>
-        <div className="form-row">
-          <label>Display currency (no FX conversion)</label>
-          <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)}>
-            {AppCurrencies.all.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.symbol} — {c.name} ({c.code})
+      {/* Preferences */}
+      <div className="card section-gap">
+        <h2 className="card-title" style={{ marginBottom: 14 }}>
+          Preferences
+        </h2>
+        <div className="set-row">
+          <div className="grow">
+            <div className="t">Currency</div>
+            <div className="d">Symbol shown on all amounts (no FX conversion)</div>
+          </div>
+          <select
+            style={{ width: 160 }}
+            value={currencyCode}
+            onChange={(e) => setCurrencyCode(e.target.value)}
+          >
+            {AppCurrencies.all.map((cur) => (
+              <option key={cur.code} value={cur.code}>
+                {cur.symbol} — {cur.code}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="set-row">
+          <div className="grow">
+            <div className="t">Budget alert threshold</div>
+            <div className="d">Warn when a budget reaches this %</div>
+          </div>
+          <select
+            style={{ width: 110 }}
+            value={budgetAlertThreshold}
+            onChange={(e) => setBudgetAlertThreshold(Number(e.target.value))}
+          >
+            {[70, 75, 80, 85, 90, 95].map((v) => (
+              <option key={v} value={v}>
+                {v}%
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      <div className="card">
-        <h2 className="card-title">Budget alerts</h2>
-        <div className="form-row">
-          <label>Alert threshold: {budgetAlertThreshold}%</label>
-          <input
-            type="range"
-            min={1}
-            max={100}
-            value={budgetAlertThreshold}
-            onChange={(e) => setBudgetAlertThreshold(Number(e.target.value))}
-          />
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            Budgets are flagged "nearing" once spending reaches this percentage.
-          </div>
-        </div>
-      </div>
-
       <DataSection />
+
+      <p
+        className="muted"
+        style={{ fontSize: 12, textAlign: "center", marginTop: 20 }}
+      >
+        SmartSpender Web · v1.0.0 · Local-only
+      </p>
     </>
   );
 }
@@ -208,8 +228,13 @@ function DataSection() {
   };
 
   return (
-    <div className="card">
-      <h2 className="card-title">Data</h2>
+    <div className="card section-gap">
+      <h2 className="card-title" style={{ marginBottom: 6 }}>
+        Data
+      </h2>
+      <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>
+        The only bridge between mobile &amp; web is the JSON backup file.
+      </p>
       <ErrorBanner message={error} />
       {status && (
         <div
@@ -224,21 +249,52 @@ function DataSection() {
         </div>
       )}
 
-      <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+      <div className="set-row">
+        <div className="grow">
+          <div className="t">Load demo data</div>
+          <div className="d">Replace everything with a realistic sample dataset</div>
+        </div>
         <button className="btn" onClick={loadDemo} disabled={busy}>
-          ✨ Load Demo Data
+          ✨ Load
         </button>
-        <button className="btn" onClick={exportJson}>
-          ⬇ Export JSON
-        </button>
-        <button className="btn" onClick={exportCsv}>
-          ⬇ Export CSV
-        </button>
+      </div>
+
+      <div className="set-row">
+        <div className="grow">
+          <div className="t">Export backup</div>
+          <div className="d">Download all data as a JSON file (schemaVersion 1)</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn" onClick={exportCsv}>
+            CSV
+          </button>
+          <button className="btn" onClick={exportJson}>
+            ⇩ Export
+          </button>
+        </div>
+      </div>
+
+      <div className="set-row">
+        <div className="grow">
+          <div className="t">Import backup</div>
+          <div className="d">Replaces all current web data</div>
+        </div>
         <button className="btn" onClick={onPickFile}>
-          ⬆ Import JSON
+          ⇧ Import
         </button>
+      </div>
+
+      <div className="set-row">
+        <div className="grow">
+          <div className="t" style={{ color: "var(--expense)" }}>
+            Reset all data
+          </div>
+          <div className="d">
+            Permanently delete every transaction, budget and category
+          </div>
+        </div>
         <button className="btn danger" onClick={() => setConfirmClear(true)}>
-          🗑 Clear All Data
+          Reset
         </button>
       </div>
 
@@ -250,18 +306,17 @@ function DataSection() {
         onChange={onFileChosen}
       />
 
-      <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-        Backups are compatible with the SmartSpender mobile app (schema v1). The
-        two apps only exchange data through this JSON file — never over the network.
-      </p>
-
       {pendingImport && (
         <Modal
           title="Replace all data?"
           onClose={() => !busy && setPendingImport(null)}
           footer={
             <div className="modal-actions">
-              <button className="btn" onClick={() => setPendingImport(null)} disabled={busy}>
+              <button
+                className="btn ghost"
+                onClick={() => setPendingImport(null)}
+                disabled={busy}
+              >
                 Cancel
               </button>
               <button className="btn danger" onClick={confirmImport} disabled={busy}>
@@ -288,7 +343,11 @@ function DataSection() {
           onClose={() => !busy && setConfirmClear(false)}
           footer={
             <div className="modal-actions">
-              <button className="btn" onClick={() => setConfirmClear(false)} disabled={busy}>
+              <button
+                className="btn ghost"
+                onClick={() => setConfirmClear(false)}
+                disabled={busy}
+              >
                 Cancel
               </button>
               <button className="btn danger" onClick={clearAll} disabled={busy}>

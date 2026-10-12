@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Category, CategorySuggestion, Transaction, TxType } from "../api/types";
 import { AnalyticsApi, TransactionsApi } from "../api/client";
+import { useSettings } from "../context/SettingsContext";
 import { Modal } from "./Modal";
 import { ErrorBanner } from "./common";
 import { toDateInput, fromDateInput } from "../lib/dates";
@@ -16,8 +17,13 @@ interface Props {
 
 /**
  * Add/edit a transaction. Includes the auto-categorization suggestion chip:
- * on description blur (and matching type) it calls GET /categorize and offers
- * to apply the suggested category.
+ * on description change/blur (and matching type) it calls GET /categorize and
+ * offers to apply the suggested category.
+ *
+ * Layout mirrors Docs/smartspender-mockups/web/transaction-modal.html:
+ * segmented income/expense toggle, big amount with currency prefix,
+ * description, category + date grid, optional note, and a suggestion chip row
+ * (suggested category + "make recurring").
  */
 export function TransactionForm({
   categories,
@@ -26,15 +32,18 @@ export function TransactionForm({
   onClose,
   onSaved,
 }: Props) {
+  const { currencySymbol } = useSettings();
   const [type, setType] = useState<TxType>(existing?.type ?? defaultType);
   const [amount, setAmount] = useState(existing ? String(existing.amount) : "");
   const [description, setDescription] = useState(existing?.description ?? "");
+  const [note, setNote] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(
     existing?.categoryId ?? null,
   );
   const [date, setDate] = useState(
     toDateInput(existing ? new Date(existing.date) : new Date()),
   );
+  const [recurring, setRecurring] = useState(false);
   const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -101,14 +110,15 @@ export function TransactionForm({
   return (
     <Modal
       title={existing ? "Edit transaction" : "Add transaction"}
+      subtitle="Record income or an expense"
       onClose={onClose}
       footer={
         <div className="modal-actions">
-          <button className="btn" onClick={onClose} disabled={saving}>
+          <button className="btn ghost" onClick={onClose} disabled={saving}>
             Cancel
           </button>
           <button className="btn primary" onClick={submit} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : "Save transaction"}
           </button>
         </div>
       }
@@ -116,27 +126,45 @@ export function TransactionForm({
       <ErrorBanner message={error} />
 
       <div className="form-row">
-        <label>Type</label>
-        <div className="row">
-          {(["expense", "income"] as TxType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`btn sm ${type === t ? "primary" : ""}`}
-              onClick={() => {
-                setType(t);
-                fetchSuggestion(description, t);
-              }}
-            >
-              {t === "income" ? "Income" : "Expense"}
-            </button>
-          ))}
+        <div className="seg">
+          <button
+            type="button"
+            className={type === "expense" ? "on-exp" : ""}
+            onClick={() => {
+              setType("expense");
+              fetchSuggestion(description, "expense");
+            }}
+          >
+            − Expense
+          </button>
+          <button
+            type="button"
+            className={type === "income" ? "on-inc" : ""}
+            onClick={() => {
+              setType("income");
+              fetchSuggestion(description, "income");
+            }}
+          >
+            ＋ Income
+          </button>
         </div>
       </div>
 
-      <div className="form-grid">
-        <div className="form-row">
-          <label>Amount</label>
+      <div className="form-row">
+        <label>Amount</label>
+        <div style={{ position: "relative" }}>
+          <span
+            style={{
+              position: "absolute",
+              left: 13,
+              top: "50%",
+              transform: "translateY(-50%)",
+              fontWeight: 800,
+              color: "var(--text-muted)",
+            }}
+          >
+            {currencySymbol}
+          </span>
           <input
             type="number"
             inputMode="decimal"
@@ -145,11 +173,8 @@ export function TransactionForm({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
+            style={{ paddingLeft: 30, fontSize: 20, fontWeight: 800 }}
           />
-        </div>
-        <div className="form-row">
-          <label>Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       </div>
 
@@ -162,43 +187,78 @@ export function TransactionForm({
             fetchSuggestion(e.target.value, type);
           }}
           onBlur={() => fetchSuggestion(description, type)}
-          placeholder="e.g. Uber ride"
+          placeholder="e.g. Woolworths"
         />
       </div>
 
-      {showSuggestChip && (
+      <div className="form-grid">
         <div className="form-row">
-          <button
-            type="button"
-            className="chip suggest"
-            onClick={() => {
-              setCategoryId(suggestionCategory!.id);
-              setSuggestion(null);
-            }}
-            title={suggestion?.reason}
+          <label>Category</label>
+          <select
+            value={categoryId ?? ""}
+            onChange={(e) =>
+              setCategoryId(e.target.value ? Number(e.target.value) : null)
+            }
           >
-            <span>{iconEmoji(suggestionCategory!.icon)}</span>
-            Suggested: {suggestionCategory!.name}
-            {suggestion?.fromHistory ? " (from history)" : ""}
-          </button>
+            <option value="">Uncategorised</option>
+            {typeCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {iconEmoji(c.icon)} {c.name}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+        <div className="form-row">
+          <label>Date</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+      </div>
 
       <div className="form-row">
-        <label>Category</label>
-        <select
-          value={categoryId ?? ""}
-          onChange={(e) =>
-            setCategoryId(e.target.value ? Number(e.target.value) : null)
-          }
-        >
-          <option value="">Uncategorised</option>
-          {typeCategories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <label>Note (optional)</label>
+        <textarea
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Add a note…"
+        />
+      </div>
+
+      <div className="form-row">
+        <label>Suggestions</label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {showSuggestChip ? (
+            <button
+              type="button"
+              className="chip"
+              style={{
+                background: "color-mix(in srgb,var(--info) 14%,transparent)",
+                color: "var(--info)",
+                borderColor: "transparent",
+              }}
+              onClick={() => {
+                setCategoryId(suggestionCategory!.id);
+                setSuggestion(null);
+              }}
+              title={suggestion?.reason}
+            >
+              💡 Looks like “{suggestionCategory!.name}”
+              {suggestion?.fromHistory ? " (from history)" : ""}
+            </button>
+          ) : (
+            <span className="chip" style={{ opacity: 0.6 }}>
+              💡 Type a description for a suggestion
+            </span>
+          )}
+          <button
+            type="button"
+            className={`chip${recurring ? " on" : ""}`}
+            onClick={() => setRecurring((r) => !r)}
+            title="Flag this as a recurring charge"
+          >
+            ↻ Make recurring
+          </button>
+        </div>
       </div>
     </Modal>
   );
