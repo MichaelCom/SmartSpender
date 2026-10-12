@@ -14,7 +14,9 @@ export function Layout() {
     <div className="app">
       <nav className="sidebar">
         <div className="brand">
-          <span className="brand-mark">💰</span>
+          <span className="brand-mark">
+            <img src="/brand-mark-white.png" alt="" aria-hidden="true" />
+          </span>
           <span>SmartSpender</span>
         </div>
         {NAV.map((n) => (

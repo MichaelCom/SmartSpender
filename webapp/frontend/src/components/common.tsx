@@ -21,6 +21,7 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Tooltip,
 } from "recharts";
 
 /* ---------------------------------------------------------------------------
@@ -151,14 +152,17 @@ export function Donut({
   centerLabel,
   centerValue,
   size = 150,
+  formatValue,
 }: {
   data: DonutDatum[];
   centerLabel?: ReactNode;
   centerValue?: ReactNode;
   size?: number;
+  formatValue?: (value: number) => string;
 }) {
   const stroke = cssVar("--surface", "#ffffff");
   const hasData = data.some((d) => d.value > 0);
+  const total = data.reduce((s, d) => s + d.value, 0);
   return (
     <div className="donut" style={{ width: size, height: size }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -169,7 +173,7 @@ export function Donut({
             nameKey="label"
             cx="50%"
             cy="50%"
-            innerRadius="62%"
+            innerRadius="66%"
             outerRadius="100%"
             paddingAngle={hasData ? 1.5 : 0}
             stroke={stroke}
@@ -180,6 +184,23 @@ export function Donut({
               <Cell key={i} fill={d.color} />
             ))}
           </Pie>
+          {hasData && (
+            <Tooltip
+              formatter={(value: number, name: string) => {
+                const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                const shown = formatValue ? formatValue(value) : String(value);
+                return [`${shown} (${pct}%)`, name];
+              }}
+              contentStyle={{
+                background: cssVar("--surface", "#fff"),
+                border: `1px solid ${cssVar("--border", "#e4e8ef")}`,
+                borderRadius: 10,
+                boxShadow: cssVar("--shadow", "0 6px 20px rgba(0,0,0,.1)"),
+              }}
+              labelStyle={{ color: cssVar("--text", "#0f172a"), fontWeight: 700 }}
+              itemStyle={{ color: cssVar("--text", "#0f172a") }}
+            />
+          )}
         </PieChart>
       </ResponsiveContainer>
       {(centerLabel != null || centerValue != null) && (

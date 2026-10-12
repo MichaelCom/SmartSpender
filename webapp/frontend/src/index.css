@@ -236,6 +236,13 @@ label {
   flex-shrink: 0;
 }
 
+.brand-mark img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+}
+
 .nav-link {
   display: flex;
   align-items: center;
@@ -433,9 +440,9 @@ label {
   padding: 18px;
 }
 
-.card + .card {
-  margin-top: 16px;
-}
+/* Cards are spaced by their container: `.section-gap` for stacked cards in
+   normal flow, and `gap` inside grid/flex layouts. (A blanket `.card + .card`
+   margin was removed — inside grids it made the first item look larger.) */
 
 .card-head {
   display: flex;
@@ -461,6 +468,14 @@ label {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
+  align-items: stretch;
+}
+
+/* Guarantee both dashboard columns render at equal height regardless of
+   their inner content length. */
+.grid-2 > .card {
+  height: 100%;
+  margin: 0;
 }
 
 /* ============================================================
@@ -659,6 +674,38 @@ label {
   flex-wrap: wrap;
 }
 
+/* "Total spent" heading above the donut (replaces the in-hole label). */
+.donut-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.donut-total .s {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.donut-total .b {
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Dashboard "Spending by category" card: fill the stretched grid cell and
+   center the donut content vertically so it doesn't bunch at the top. */
+.dash-donut-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  align-self: stretch;
+}
+.dash-donut-card .donut-wrap {
+  flex: 1;
+  align-content: center;
+}
+
 .donut {
   width: 150px;
   height: 150px;
@@ -683,9 +730,10 @@ label {
 }
 
 .donut .ctr .b {
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .legend {

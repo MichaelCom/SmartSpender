@@ -62,12 +62,71 @@ function useChartColors() {
       warning: get("--warning") || "#f59e0b",
       border: get("--border") || "#e4e8ef",
       textMuted: get("--text-muted") || "#64748b",
+      text: get("--text") || "#0f172a",
       surface: get("--surface") || "#fff",
       surface3: get("--surface-3") || "#e9edf3",
       cats: CAT_COLORS,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [palette, themeMode, tick]);
+}
+
+type ChartColors = ReturnType<typeof useChartColors>;
+type TooltipRow = { name?: string; value?: number; dataKey?: string; payload?: any };
+
+/**
+ * Builds a Recharts custom tooltip whose values are coloured by semantic
+ * meaning. `colorFor(row, c)` returns the colour for each row's value; return
+ * null to use the default text colour.
+ */
+function makeSemanticTooltip(
+  c: ChartColors,
+  fmt: (n: number) => string,
+  colorFor: (row: TooltipRow, c: ChartColors) => string | null,
+) {
+  return function SemanticTooltip({ active, payload, label }: any) {
+    if (!active || !payload || payload.length === 0) return null;
+    return (
+      <div
+        style={{
+          background: c.surface,
+          border: `1px solid ${c.border}`,
+          borderRadius: 10,
+          padding: "8px 11px",
+          boxShadow: "0 6px 20px rgba(0,0,0,.12)",
+          fontSize: 13,
+        }}
+      >
+        {label != null && (
+          <div style={{ color: c.text, fontWeight: 700, marginBottom: 4 }}>
+            {label}
+          </div>
+        )}
+        {(payload as TooltipRow[]).map((row, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 16,
+              color: c.text,
+            }}
+          >
+            <span style={{ color: c.textMuted }}>{row.name}</span>
+            <span
+              style={{
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+                color: colorFor(row, c) ?? c.text,
+              }}
+            >
+              {fmt(Number(row.value ?? 0))}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 }
 
 export function Reports() {
@@ -245,11 +304,9 @@ function OverviewTab() {
                 }
               />
               <Tooltip
-                formatter={(v) => fmt(Number(v))}
-                contentStyle={{
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
-                }}
+                content={makeSemanticTooltip(c, fmt, (row) =>
+                  row.dataKey === "income" ? c.income : c.expense
+                )}
               />
               <Legend />
               <Bar dataKey="income" name="Income" fill={c.income} radius={[5, 5, 0, 0]} />
@@ -333,11 +390,7 @@ function TrendsTab() {
                 }
               />
               <Tooltip
-                formatter={(v) => fmt(Number(v))}
-                contentStyle={{
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
-                }}
+                content={makeSemanticTooltip(c, fmt, () => c.expense)}
               />
               <Legend />
               <Area
@@ -382,11 +435,7 @@ function TrendsTab() {
                 }
               />
               <Tooltip
-                formatter={(v) => fmt(Number(v))}
-                contentStyle={{
-                  background: c.surface,
-                  border: `1px solid ${c.border}`,
-                }}
+                content={makeSemanticTooltip(c, fmt, () => c.expense)}
               />
               <Bar dataKey="spend" name="Spend" fill={c.primary} radius={[3, 3, 0, 0]} />
             </BarChart>
@@ -439,12 +488,12 @@ function CategoriesTab() {
         <div className="card-head">
           <h2 className="card-title">Spending by category</h2>
         </div>
+        <div className="donut-total">
+          <span className="s">Total</span>
+          <span className="b">{fmt(donutData.reduce((s, d) => s + d.value, 0))}</span>
+        </div>
         <div className="donut-wrap">
-          <Donut
-            data={donutData}
-            centerLabel="Total"
-            centerValue={fmt(donutData.reduce((s, d) => s + d.value, 0))}
-          />
+          <Donut data={donutData} formatValue={fmt} size={170} />
           <div className="legend">
             {donutData.map((d) => (
               <div className="leg" key={d.label}>
@@ -472,11 +521,7 @@ function CategoriesTab() {
             />
             <YAxis type="category" dataKey="name" stroke={c.textMuted} width={90} />
             <Tooltip
-              formatter={(v) => fmt(Number(v))}
-              contentStyle={{
-                background: c.surface,
-                border: `1px solid ${c.border}`,
-              }}
+              content={makeSemanticTooltip(c, fmt, () => c.expense)}
             />
             <Bar dataKey="value" name="Spend" radius={[0, 4, 4, 0]}>
               {barData.map((_, i) => (
@@ -531,11 +576,12 @@ function BudgetTab() {
             }
           />
           <Tooltip
-            formatter={(v) => fmt(Number(v))}
-            contentStyle={{
-              background: c.surface,
-              border: `1px solid ${c.border}`,
-            }}
+            content={makeSemanticTooltip(c, fmt, (row) => {
+              if (row.dataKey === "budget") return c.text;
+              const bud = Number(row.payload?.budget ?? 0);
+              const act = Number(row.value ?? 0);
+              return act > bud ? c.expense : c.income;
+            })}
           />
           <Legend />
           <Bar dataKey="budget" name="Budget" fill={c.surface3} radius={[4, 4, 0, 0]} />

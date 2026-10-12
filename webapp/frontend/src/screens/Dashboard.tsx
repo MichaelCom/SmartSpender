@@ -180,7 +180,7 @@ export function Dashboard() {
 
           {/* Two-column: donut + budget alerts */}
           <div className="grid-2">
-            <div className="card">
+            <div className="card dash-donut-card">
               <div className="card-head">
                 <h2 className="card-title">Spending by category</h2>
                 <a className="link" onClick={() => navigate("/reports")}>
@@ -190,22 +190,24 @@ export function Dashboard() {
               {donutData.length === 0 ? (
                 <Empty text="No expenses this month." />
               ) : (
-                <div className="donut-wrap">
-                  <Donut
-                    data={donutData}
-                    centerLabel="Total spent"
-                    centerValue={fmt(expenses)}
-                  />
-                  <div className="legend">
-                    {donutData.map((d) => (
-                      <div className="leg" key={d.label}>
-                        <span className="dot" style={{ background: d.color }} />
-                        <span className="nm">{d.label}</span>
-                        <span className="vl">{fmt(d.value)}</span>
-                      </div>
-                    ))}
+                <>
+                  <div className="donut-total">
+                    <span className="s">Total spent</span>
+                    <span className="b">{fmt(expenses)}</span>
                   </div>
-                </div>
+                  <div className="donut-wrap">
+                    <Donut data={donutData} formatValue={fmt} size={170} />
+                    <div className="legend">
+                      {donutData.map((d) => (
+                        <div className="leg" key={d.label}>
+                          <span className="dot" style={{ background: d.color }} />
+                          <span className="nm">{d.label}</span>
+                          <span className="vl">{fmt(d.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
