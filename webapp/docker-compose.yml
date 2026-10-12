@@ -11,9 +11,14 @@
 # app. The two never talk over the network; the only bridge is the JSON backup
 # file (Import/Export in the web Settings screen).
 
+# Compose project name — groups these containers under "smartspender" in
+# Docker Desktop so they're easy to find among other projects.
+name: smartspender
+
 services:
   db:
     image: postgres:16-alpine
+    container_name: smartspender-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-smartspender}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartspender}
@@ -34,6 +39,7 @@ services:
   api:
     build:
       context: ./api
+    container_name: smartspender-api
     environment:
       PORT: 4000
       POSTGRES_HOST: db
@@ -54,6 +60,7 @@ services:
         # Baked into the Vite build. The browser (on the host) reaches the API
         # at localhost:4000, NOT the compose-internal hostname.
         VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+    container_name: smartspender-frontend
     ports:
       - "5173:5173"
     depends_on:
