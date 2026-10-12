@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_spender/models/budget.dart';
 import 'package:smart_spender/models/category.dart';
+import 'package:smart_spender/models/recurring_transaction.dart';
 import 'package:smart_spender/models/transaction.dart';
 import 'package:smart_spender/services/backup_service.dart';
 
@@ -73,17 +74,18 @@ void main() {
   }
 
   group('exportToJsonString', () {
-    test('produces valid schema v1 JSON with all data', () async {
+    test('produces valid schema v2 JSON with all data', () async {
       await seedData();
       final jsonStr = await service.exportToJsonString();
       final map = json.decode(jsonStr) as Map<String, dynamic>;
 
-      expect(map['schemaVersion'], 1);
+      expect(map['schemaVersion'], 2);
       expect(map['app'], 'SmartSpender');
       expect(map['exportedAt'], isA<String>());
       expect((map['categories'] as List).length, 2);
       expect((map['transactions'] as List).length, 3);
       expect((map['budgets'] as List).length, 1);
+      expect(map['recurring'], isA<List>());
     });
   });
 
@@ -114,9 +116,9 @@ void main() {
       );
     });
 
-    test('rejects wrong schemaVersion', () {
+    test('rejects unsupported schemaVersion', () {
       final jsonStr = json.encode({
-        'schemaVersion': 2,
+        'schemaVersion': 99,
         'categories': [],
         'transactions': [],
         'budgets': [],
@@ -125,6 +127,17 @@ void main() {
         () => service.parseJson(jsonStr),
         throwsA(isA<BackupFormatException>()),
       );
+    });
+
+    test('accepts a v1 backup (no recurring array)', () {
+      final jsonStr = json.encode({
+        'schemaVersion': 1,
+        'categories': [],
+        'transactions': [],
+        'budgets': [],
+      });
+      final data = service.parseJson(jsonStr);
+      expect(data.recurring, isEmpty);
     });
 
     test('rejects non-list categories', () {
@@ -418,6 +431,81 @@ void main() {
       final csv = await service.exportTransactionsToCsvString();
       // The quoted field preserves the embedded newline.
       expect(csv, contains('"line1\nline2"'));
+    });
+  });
+
+  group('recurring round-trip (v2)', () {
+    test('exports recurring rules and restores them with remapped category',
+        () async {
+      final ids = await seedData();
+      // A monthly recurring expense tied to the Food category.
+      await testDb.repositories.recurring.insert(
+        RecurringTransaction(
+          amount: 199.0,
+          description: 'Streaming subscription',
+          categoryId: ids.foodId,
+          type: 'expense',
+          frequency: 'monthly',
+          startDate: DateTime(2026, 1, 1),
+          endDate: null,
+          lastGeneratedDate: DateTime(2026, 1, 1),
+          createdAt: DateTime(2026, 1, 1),
+        ),
+      );
+      // An uncategorised recurring income (categoryId null).
+      await testDb.repositories.recurring.insert(
+        RecurringTransaction(
+          amount: 50.0,
+          description: 'Odd job',
+          categoryId: null,
+          type: 'income',
+          frequency: 'weekly',
+          startDate: DateTime(2026, 1, 1),
+          createdAt: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final jsonStr = await service.exportToJsonString();
+      final map = json.decode(jsonStr) as Map<String, dynamic>;
+      expect((map['recurring'] as List).length, 2);
+
+      // Restore into a fresh DB (new ids assigned).
+      final fresh = TestDb.create();
+      addTearDown(fresh.dispose);
+      final freshService = BackupService(fresh.repositories);
+      final result = await freshService.restoreFromJson(jsonStr);
+
+      expect(result.success, isTrue);
+      expect(result.recurringImported, 2);
+
+      final restored = await fresh.repositories.recurring.getAll();
+      expect(restored, hasLength(2));
+
+      // The categorised rule must point at the Food category under its NEW id.
+      final foodCat = (await fresh.repositories.categories.getAll())
+          .firstWhere((c) => c.name == 'Food & Dining');
+      final sub = restored.firstWhere((r) => r.description == 'Streaming subscription');
+      expect(sub.categoryId, foodCat.id);
+      expect(sub.frequency, 'monthly');
+
+      // The uncategorised rule stays null.
+      final odd = restored.firstWhere((r) => r.description == 'Odd job');
+      expect(odd.categoryId, isNull);
+    });
+
+    test('a v1 backup (no recurring) restores with zero recurring rules',
+        () async {
+      final jsonStr = json.encode({
+        'schemaVersion': 1,
+        'app': 'SmartSpender',
+        'categories': [],
+        'transactions': [],
+        'budgets': [],
+      });
+      final result = await service.restoreFromJson(jsonStr);
+      expect(result.success, isTrue);
+      expect(result.recurringImported, 0);
+      expect(await testDb.repositories.recurring.getAll(), isEmpty);
     });
   });
 

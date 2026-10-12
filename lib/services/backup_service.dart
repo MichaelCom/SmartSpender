@@ -2,11 +2,18 @@ import 'dart:convert';
 
 import '../models/budget.dart';
 import '../models/category.dart';
+import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
 import '../repositories/repositories.dart';
 
 /// Current JSON backup schema version. Bump when the on-disk format changes.
-const int kBackupSchemaVersion = 1;
+///
+/// v2 adds a `recurring` array. v1 (no recurring) is still accepted on import
+/// for backward compatibility.
+const int kBackupSchemaVersion = 2;
+
+/// Schema versions this build can import.
+const Set<int> kSupportedBackupSchemaVersions = {1, 2};
 
 /// Result of an import/restore attempt.
 class ImportResult {
@@ -15,12 +22,14 @@ class ImportResult {
   final int categoriesImported;
   final int transactionsImported;
   final int budgetsImported;
+  final int recurringImported;
   const ImportResult({
     required this.success,
     required this.message,
     this.categoriesImported = 0,
     this.transactionsImported = 0,
     this.budgetsImported = 0,
+    this.recurringImported = 0,
   });
 }
 
@@ -41,11 +50,13 @@ class BackupData {
   final List<Category> categories;
   final List<Transaction> transactions;
   final List<Budget> budgets;
+  final List<RecurringTransaction> recurring;
   const BackupData({
     required this.appVersion,
     required this.categories,
     required this.transactions,
     required this.budgets,
+    this.recurring = const [],
   });
 }
 
@@ -64,6 +75,7 @@ class BackupService {
     final transactions =
         await _repositories.transactions.getAllWithCategoryInfo();
     final budgets = await _repositories.budgets.getAllWithCategoryInfo();
+    final recurring = await _repositories.recurring.getAll();
 
     final map = <String, dynamic>{
       'schemaVersion': kBackupSchemaVersion,
@@ -72,6 +84,7 @@ class BackupService {
       'categories': categories.map(_categoryToJson).toList(),
       'transactions': transactions.map(_transactionToJson).toList(),
       'budgets': budgets.map(_budgetToJson).toList(),
+      'recurring': recurring.map(_recurringToJson).toList(),
     };
 
     return const JsonEncoder.withIndent('  ').convert(map);
@@ -136,16 +149,21 @@ class BackupService {
       throw BackupFormatException('Missing "schemaVersion".');
     }
     final schemaVersion = root['schemaVersion'];
-    if (schemaVersion is! int || schemaVersion != kBackupSchemaVersion) {
+    if (schemaVersion is! int ||
+        !kSupportedBackupSchemaVersions.contains(schemaVersion)) {
       throw BackupFormatException(
         'Unsupported schemaVersion: $schemaVersion '
-        '(expected $kBackupSchemaVersion).',
+        '(supported: ${kSupportedBackupSchemaVersions.join(', ')}).',
       );
     }
 
     final categoriesRaw = _requireList(root, 'categories');
     final transactionsRaw = _requireList(root, 'transactions');
     final budgetsRaw = _requireList(root, 'budgets');
+    // `recurring` is optional (absent in v1); default to empty.
+    final recurringRaw = root.containsKey('recurring')
+        ? _requireList(root, 'recurring')
+        : const [];
 
     final categories = <Category>[];
     for (final e in categoriesRaw) {
@@ -162,6 +180,11 @@ class BackupService {
       budgets.add(_budgetFromJson(_requireObject(e, 'budget')));
     }
 
+    final recurring = <RecurringTransaction>[];
+    for (final e in recurringRaw) {
+      recurring.add(_recurringFromJson(_requireObject(e, 'recurring rule')));
+    }
+
     final appVersion = root['app'] is String ? root['app'] as String : '';
 
     return BackupData(
@@ -169,6 +192,7 @@ class BackupService {
       categories: categories,
       transactions: transactions,
       budgets: budgets,
+      recurring: recurring,
     );
   }
 
@@ -230,14 +254,29 @@ class BackupService {
         budgetsImported++;
       }
 
+      var recurringImported = 0;
+      for (final r in data.recurring) {
+        // Recurring categoryId is nullable (SET NULL): an unknown category
+        // becomes null (uncategorised) rather than skipping the rule.
+        final oldCategoryId = r.categoryId;
+        final newCategoryId =
+            oldCategoryId == null ? null : idMap[oldCategoryId];
+        await _repositories.recurring.insert(
+          r.copyWith(id: null)..categoryId = newCategoryId,
+        );
+        recurringImported++;
+      }
+
       return ImportResult(
         success: true,
         message: 'Restored $categoriesImported categories, '
             '$transactionsImported transactions, '
-            '$budgetsImported budgets.',
+            '$budgetsImported budgets, '
+            '$recurringImported recurring rules.',
         categoriesImported: categoriesImported,
         transactionsImported: transactionsImported,
         budgetsImported: budgetsImported,
+        recurringImported: recurringImported,
       );
     } catch (e) {
       return ImportResult(
@@ -281,6 +320,19 @@ class BackupService {
         'description': b.description,
       };
 
+  Map<String, dynamic> _recurringToJson(RecurringTransaction r) => {
+        'id': r.id,
+        'amount': r.amount,
+        'description': r.description,
+        'categoryId': r.categoryId,
+        'type': r.type,
+        'frequency': r.frequency,
+        'startDate': r.startDate.toIso8601String(),
+        'endDate': r.endDate?.toIso8601String(),
+        'lastGeneratedDate': r.lastGeneratedDate?.toIso8601String(),
+        'createdAt': r.createdAt.toIso8601String(),
+      };
+
   Category _categoryFromJson(Map<String, dynamic> m) => Category(
         id: _asIntOrNull(m['id']),
         name: _requireString(m, 'name'),
@@ -309,6 +361,20 @@ class BackupService {
         endDate: _parseDate(m, 'endDate'),
         createdAt: _parseDate(m, 'createdAt'),
         description: _asStringOrNull(m['description']),
+      );
+
+  RecurringTransaction _recurringFromJson(Map<String, dynamic> m) =>
+      RecurringTransaction(
+        id: _asIntOrNull(m['id']),
+        amount: _requireNum(m, 'amount').toDouble(),
+        description: _asStringOrNull(m['description']),
+        categoryId: _asIntOrNull(m['categoryId']),
+        type: _requireString(m, 'type'),
+        frequency: _requireString(m, 'frequency'),
+        startDate: _parseDate(m, 'startDate'),
+        endDate: _parseDateOrNull(m, 'endDate'),
+        lastGeneratedDate: _parseDateOrNull(m, 'lastGeneratedDate'),
+        createdAt: _parseDate(m, 'createdAt'),
       );
 
   // -------------------------------------------------------------------------
@@ -356,6 +422,20 @@ class BackupService {
 
   DateTime _parseDate(Map<String, dynamic> m, String key) {
     final v = m[key];
+    if (v is! String) {
+      throw BackupFormatException('Field "$key" must be an ISO-8601 string.');
+    }
+    try {
+      return DateTime.parse(v);
+    } on FormatException {
+      throw BackupFormatException('Field "$key" is not a valid date: $v');
+    }
+  }
+
+  /// Parses an optional ISO-8601 date; returns null when absent or null.
+  DateTime? _parseDateOrNull(Map<String, dynamic> m, String key) {
+    final v = m[key];
+    if (v == null) return null;
     if (v is! String) {
       throw BackupFormatException('Field "$key" must be an ISO-8601 string.');
     }

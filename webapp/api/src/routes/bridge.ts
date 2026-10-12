@@ -21,7 +21,7 @@ function isArray(v: unknown): v is any[] {
 }
 
 // POST /import -> REPLACE all data, remap IDs.
-// Accepts the EXACT mobile backup JSON (schemaVersion 1) from §3. The optional
+// Accepts the mobile backup JSON (schemaVersion 1 or 2) from §3. The optional
 // web-extension "recurring" array is also imported when present.
 bridgeRouter.post(
   "/import",
@@ -30,8 +30,10 @@ bridgeRouter.post(
     if (body == null || typeof body !== "object" || Array.isArray(body)) {
       throw badRequest("Backup must be a JSON object");
     }
-    if (body.schemaVersion !== 1) {
-      throw badRequest("Unsupported or missing schemaVersion (expected 1)");
+    if (body.schemaVersion !== 1 && body.schemaVersion !== 2) {
+      throw badRequest(
+        "Unsupported or missing schemaVersion (expected 1 or 2)"
+      );
     }
     if (
       !isArray(body.categories) ||
@@ -172,7 +174,7 @@ bridgeRouter.post(
   })
 );
 
-// GET /export -> schemaVersion 1 document + optional "recurring" (web extension)
+// GET /export -> schemaVersion 2 document + optional "recurring" (web extension)
 bridgeRouter.get(
   "/export",
   wrap(async (_req, res) => {
@@ -184,7 +186,7 @@ bridgeRouter.get(
     ]);
 
     const doc = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       app: "SmartSpender",
       exportedAt: new Date().toISOString(),
       categories: categories.map((c) => {
