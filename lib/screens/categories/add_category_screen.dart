@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/category.dart' as model;
 import '../../providers/category_provider.dart';
+import '../../widgets/redesign/redesign.dart';
 
 class AddCategoryScreen extends StatefulWidget {
   final model.Category? category; // null for add, existing category for edit
@@ -15,42 +16,11 @@ class AddCategoryScreen extends StatefulWidget {
 class _AddCategoryScreenState extends State<AddCategoryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  
+
   String _selectedType = 'expense';
   String _selectedColor = '#FF6B6B';
   String _selectedIcon = 'category';
   bool _isLoading = false;
-
-  // Available colors for categories
-  final List<String> _colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-    '#DDA0DD', '#98D8C8', '#F7DC6F', '#2ECC71', '#3498DB',
-    '#9B59B6', '#E74C3C', '#F39C12', '#1ABC9C', '#34495E'
-  ];
-
-  // Available icons for categories
-  final Map<String, IconData> _icons = {
-    'category': Icons.category,
-    'restaurant': Icons.restaurant,
-    'directions_car': Icons.directions_car,
-    'shopping_bag': Icons.shopping_bag,
-    'movie': Icons.movie,
-    'receipt': Icons.receipt,
-    'local_hospital': Icons.local_hospital,
-    'school': Icons.school,
-    'work': Icons.work,
-    'computer': Icons.computer,
-    'trending_up': Icons.trending_up,
-    'card_giftcard': Icons.card_giftcard,
-    'attach_money': Icons.attach_money,
-    'home': Icons.home,
-    'fitness_center': Icons.fitness_center,
-    'local_gas_station': Icons.local_gas_station,
-    'phone': Icons.phone,
-    'wifi': Icons.wifi,
-    'pets': Icons.pets,
-    'child_care': Icons.child_care,
-  };
 
   @override
   void initState() {
@@ -70,13 +40,6 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
     super.dispose();
   }
 
-  Color _hexToColor(String hexString) {
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    return Color(int.parse(buffer.toString(), radix: 16));
-  }
-
   Future<void> _saveCategory() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -84,8 +47,11 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
       _isLoading = true;
     });
 
-    final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
-    
+    final categoryProvider = Provider.of<CategoryProvider>(
+      context,
+      listen: false,
+    );
+
     final category = model.Category(
       name: _nameController.text.trim(),
       type: _selectedType,
@@ -112,9 +78,11 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.category == null 
-                ? 'Category added successfully!' 
-                : 'Category updated successfully!'),
+            content: Text(
+              widget.category == null
+                  ? 'Category added successfully!'
+                  : 'Category updated successfully!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -133,10 +101,13 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.category == null ? 'Add Category' : 'Edit Category'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: const BackButton(),
+        title: Text(
+          widget.category == null ? 'Add category' : 'Edit category',
+        ),
         actions: [
           if (_isLoading)
             const Center(
@@ -150,10 +121,7 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
               ),
             )
           else
-            TextButton(
-              onPressed: _saveCategory,
-              child: const Text('Save'),
-            ),
+            TextButton(onPressed: _saveCategory, child: const Text('Save')),
         ],
       ),
       body: Form(
@@ -161,14 +129,52 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            // Category Name
+            // Live preview chip + label
+            Center(
+              child: Column(
+                children: [
+                  CategoryIconChip(
+                    colorHex: _selectedColor,
+                    iconName: _selectedIcon,
+                    size: 72,
+                    radius: 20,
+                    iconSize: 34,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _nameController.text.trim().isEmpty
+                        ? 'Preview'
+                        : _nameController.text.trim(),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Type toggle
+            IncomeExpenseSegment(
+              value: _selectedType,
+              onChanged: (value) {
+                setState(() => _selectedType = value);
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Name
+            _FieldLabel('Name', colorScheme: colorScheme),
+            const SizedBox(height: 6),
             TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Category Name',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.label),
+                hintText: 'e.g. Groceries',
               ),
+              onChanged: (_) => setState(() {}),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter a category name';
@@ -179,178 +185,91 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
                 return null;
               },
             ),
-            
-            const SizedBox(height: 24),
-            
-            // Category Type
-            const Text(
-              'Category Type',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 8),
-            RadioGroup<String>(
-              groupValue: _selectedType,
-              onChanged: (value) {
-                setState(() {
-                  _selectedType = value!;
-                });
-              },
-              child: Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Income'),
-                      value: 'income',
-                    ),
-                  ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Expense'),
-                      value: 'expense',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Color Selection
-            const Text(
-              'Color',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
+            const SizedBox(height: 20),
+
+            // Colour swatches (15)
+            _FieldLabel('Colour', colorScheme: colorScheme),
             const SizedBox(height: 8),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _colors.map((color) {
+              spacing: 9,
+              runSpacing: 9,
+              children: categoryColorChoices.map((color) {
                 final isSelected = color == _selectedColor;
                 return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedColor = color;
-                    });
-                  },
+                  onTap: () => setState(() => _selectedColor = color),
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color: _hexToColor(color),
-                      shape: BoxShape.circle,
-                      border: isSelected
-                          ? Border.all(color: Colors.black, width: 3)
-                          : null,
+                      color: categoryColorFromHex(color),
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.onSurface
+                            : Colors.transparent,
+                        width: 3,
+                      ),
                     ),
-                    child: isSelected
-                        ? const Icon(Icons.check, color: Colors.white)
-                        : null,
                   ),
                 );
               }).toList(),
             ),
-            
-            const SizedBox(height: 24),
-            
-            // Icon Selection
-            const Text(
-              'Icon',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
+            const SizedBox(height: 20),
+
+            // Icon picker (20)
+            _FieldLabel('Icon', colorScheme: colorScheme),
             const SizedBox(height: 8),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _icons.entries.map((entry) {
-                final isSelected = entry.key == _selectedIcon;
+              spacing: 9,
+              runSpacing: 9,
+              children: categoryIconChoices.map((iconName) {
+                final isSelected = iconName == _selectedIcon;
                 return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedIcon = entry.key;
-                    });
-                  },
+                  onTap: () => setState(() => _selectedIcon = iconName),
                   child: Container(
-                    width: 50,
-                    height: 50,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
-                      color: isSelected ? _hexToColor(_selectedColor) : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                      border: isSelected
-                          ? Border.all(color: Colors.black, width: 2)
-                          : null,
+                      color: colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.outlineVariant,
+                        width: isSelected ? 2 : 1,
+                      ),
                     ),
                     child: Icon(
-                      entry.value,
-                      color: isSelected ? Colors.white : Colors.grey[600],
+                      categoryIconFromName(iconName),
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
                     ),
                   ),
                 );
               }).toList(),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            // Preview
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Preview',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: _hexToColor(_selectedColor),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            _icons[_selectedIcon],
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _nameController.text.isEmpty 
-                                    ? 'Category Name' 
-                                    : _nameController.text,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Text(
-                                _selectedType.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _selectedType == 'income' 
-                                      ? Colors.green 
-                                      : Colors.red,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.label, {required this.colorScheme});
+
+  final String label;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: colorScheme.onSurfaceVariant,
       ),
     );
   }

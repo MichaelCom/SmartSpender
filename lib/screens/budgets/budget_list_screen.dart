@@ -11,7 +11,8 @@ import '../../models/budget.dart';
 import '../../utils/currency.dart';
 import '../../utils/budget_alerts.dart';
 import '../../services/insights/forecast_engine.dart';
-import '../../widgets/logo_widget.dart';
+import '../../theme/finance_colors.dart';
+import '../../widgets/redesign/redesign.dart';
 
 class BudgetListScreen extends StatefulWidget {
   const BudgetListScreen({super.key});
@@ -55,9 +56,11 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -84,7 +87,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
       if (!mounted) return;
       final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
       final success = await budgetProvider.deleteBudget(budget.key!);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -101,15 +104,21 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
   double _getSpentAmount(Budget budget) {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final transactions = transactionProvider.getTransactionsByCategory(budget.categoryKey);
-    
+
     // Filter transactions within budget period
     final relevantTransactions = transactions.where((transaction) {
       return transaction.date.isAfter(budget.startDate.subtract(const Duration(days: 1))) &&
              transaction.date.isBefore(budget.endDate.add(const Duration(days: 1))) &&
              transaction.type == 'expense';
     });
-    
+
     return relevantTransactions.fold(0.0, (sum, transaction) => sum + transaction.amount);
+  }
+
+  BudgetStatus _mapStatus(BudgetAlertStatus status) {
+    if (status.isExceeded) return BudgetStatus.over;
+    if (status.isNearing) return BudgetStatus.nearing;
+    return BudgetStatus.onTrack;
   }
 
   /// Builds the muted projection line for a budget card, or null when it should
@@ -122,6 +131,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
         Provider.of<TransactionProvider>(context, listen: false);
     final recurringProvider =
         Provider.of<RecurringProvider>(context, listen: false);
+    final finance = Theme.of(context).financeColors;
+    final colorScheme = Theme.of(context).colorScheme;
 
     final monthStart = DateTime(now.year, now.month, 1);
     final monthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
@@ -138,7 +149,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
     );
 
     final exceed = forecast.projectedToExceed;
-    final color = exceed ? Colors.amber.shade800 : Colors.grey[500];
+    final color = exceed ? finance.warning : colorScheme.onSurfaceVariant;
     final label = exceed
         ? 'Projected: ${CurrencyFormatter.format(symbol, forecast.projectedTotal)} / '
             '${CurrencyFormatter.format(symbol, budget.amount)} '
@@ -169,13 +180,16 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final finance = Theme.of(context).financeColors;
     final settings = context.watch<SettingsController>();
     final symbol = settings.currencySymbol;
     final threshold = settings.budgetAlertThreshold;
+    final monthLabel = DateFormat('MMMM').format(DateTime.now());
     return Scaffold(
       appBar: AppBar(
         title: const Text('Budgets'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: colorScheme.surface,
         actions: [
           IconButton(
             icon: Icon(_showActiveBudgets ? Icons.history : Icons.access_time),
@@ -196,8 +210,8 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Consumer3<BudgetProvider, CategoryProvider, TransactionProvider>(
               builder: (context, budgetProvider, categoryProvider, transactionProvider, child) {
-                final budgets = _showActiveBudgets 
-                    ? budgetProvider.activeBudgets 
+                final budgets = _showActiveBudgets
+                    ? budgetProvider.activeBudgets
                     : budgetProvider.budgets;
 
                 if (budgets.isEmpty) {
@@ -205,10 +219,14 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const LogoWidget(width: 100, height: 100),
-                        const SizedBox(height: 24),
+                        Icon(
+                          Icons.flag_outlined,
+                          size: 64,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 16),
                         Text(
-                          _showActiveBudgets 
+                          _showActiveBudgets
                               ? 'No active budgets found'
                               : 'No budgets created yet',
                           style: Theme.of(context).textTheme.headlineSmall,
@@ -240,232 +258,44 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
                   );
                 }
 
+                // Totals for the 2-up mini stat row.
+                double totalBudgeted = 0;
+                double totalSpent = 0;
+                for (final b in budgets) {
+                  totalBudgeted += b.amount;
+                  totalSpent += _getSpentAmount(b);
+                }
+
                 return RefreshIndicator(
                   onRefresh: _loadData,
-                  child: ListView.builder(
+                  child: ListView(
                     padding: const EdgeInsets.all(16),
-                    itemCount: budgets.length,
-                    itemBuilder: (context, index) {
-                      final budget = budgets[index];
-                      final spentAmount = _getSpentAmount(budget);
-                      final status = BudgetAlerts.evaluate(
-                        spent: spentAmount,
-                        limit: budget.amount,
-                        thresholdPercent: threshold,
-                      );
-                      final progress = budget.amount > 0
-                          ? (spentAmount / budget.amount).clamp(0.0, 1.0)
-                          : 0.0;
-                      final isOverBudget = status.isExceeded;
-                      final isNearing = status.isNearing;
-                      final remainingAmount = budget.amount - spentAmount;
-
-                      final Color accentColor = isOverBudget
-                          ? Colors.red
-                          : isNearing
-                              ? Colors.amber.shade800
-                              : Colors.blue;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: accentColor.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        budget.categoryIcon ?? '📁',
-                                        style: const TextStyle(fontSize: 20),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          budget.categoryName ?? 'Unknown Category',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${budget.period.toUpperCase()} • ${DateFormat('MMM d').format(budget.startDate)} - ${DateFormat('MMM d, y').format(budget.endDate)}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    onSelected: (value) async {
-                                      switch (value) {
-                                        case 'edit':
-                                          final result = await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => AddBudgetScreen(budget: budget),
-                                            ),
-                                          );
-                                          if (result == true) {
-                                            _loadData();
-                                          }
-                                          break;
-                                        case 'delete':
-                                          _deleteBudget(budget);
-                                          break;
-                                      }
-                                    },
-                                    itemBuilder: (context) => [
-                                      const PopupMenuItem(
-                                        value: 'edit',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.edit, size: 20),
-                                            SizedBox(width: 8),
-                                            Text('Edit'),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.delete, size: 20, color: Colors.red),
-                                            SizedBox(width: 8),
-                                            Text('Delete', style: TextStyle(color: Colors.red)),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Status chip
-                              if (isOverBudget || isNearing)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            accentColor.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            isOverBudget
-                                                ? Icons.error_outline
-                                                : Icons.warning_amber_rounded,
-                                            size: 16,
-                                            color: accentColor,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            isOverBudget
-                                                ? 'Over by ${CurrencyFormatter.format(symbol, status.overBy)}'
-                                                : 'Nearing limit',
-                                            style: TextStyle(
-                                              color: accentColor,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                              // Progress Bar
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Spent: ${CurrencyFormatter.format(symbol, spentAmount)}',
-                                        style: TextStyle(
-                                          color: isOverBudget ? Colors.red : Colors.grey[700],
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Budget: ${CurrencyFormatter.format(symbol, budget.amount)}',
-                                        style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  LinearProgressIndicator(
-                                    value: progress,
-                                    backgroundColor: Colors.grey[300],
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      accentColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    isOverBudget
-                                        ? 'Over budget by ${CurrencyFormatter.format(symbol, -remainingAmount)}'
-                                        : 'Remaining: ${CurrencyFormatter.format(symbol, remainingAmount)}',
-                                    style: TextStyle(
-                                      color: isOverBudget ? Colors.red : Colors.green,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Muted forecast projection line (suppressed in
-                              // the first few days of the month).
-                              ?_buildProjectionLine(budget, symbol),
-
-                              // Description
-                              if (budget.description != null && budget.description!.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                Text(
-                                  budget.description!,
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ],
+                    children: [
+                      MiniStatRow(
+                        tiles: [
+                          MiniStatTile(
+                            label: 'Budgeted',
+                            value: CurrencyFormatter.format(symbol, totalBudgeted),
                           ),
+                          MiniStatTile(
+                            label: 'Spent',
+                            value: CurrencyFormatter.format(symbol, totalSpent),
+                            valueColor: finance.expense,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      SectionHeader('$monthLabel budgets'),
+                      for (final budget in budgets)
+                        _buildBudgetCard(
+                          context,
+                          budget,
+                          symbol,
+                          threshold,
+                          colorScheme,
+                          finance,
                         ),
-                      );
-                    },
+                    ],
                   ),
                 );
               },
@@ -483,6 +313,174 @@ class _BudgetListScreenState extends State<BudgetListScreen> {
           }
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildBudgetCard(
+    BuildContext context,
+    Budget budget,
+    String symbol,
+    int threshold,
+    ColorScheme colorScheme,
+    FinanceColors finance,
+  ) {
+    final spentAmount = _getSpentAmount(budget);
+    final alertStatus = BudgetAlerts.evaluate(
+      spent: spentAmount,
+      limit: budget.amount,
+      thresholdPercent: threshold,
+    );
+    final status = _mapStatus(alertStatus);
+    final progress = budget.amount > 0
+        ? (spentAmount / budget.amount).clamp(0.0, 1.0)
+        : 0.0;
+    final percentUsed = budget.amount > 0
+        ? (spentAmount / budget.amount * 100).round()
+        : 0;
+    final isOverBudget = alertStatus.isExceeded;
+    final remainingAmount = budget.amount - spentAmount;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      color: colorScheme.surfaceContainer,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: icon chip, name + "spent of limit", status badge, menu.
+            Row(
+              children: [
+                CategoryIconChip(
+                  colorHex: budget.categoryColor,
+                  iconName: budget.categoryIcon,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        budget.categoryName ?? 'Unknown Category',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${CurrencyFormatter.format(symbol, spentAmount)} of '
+                        '${CurrencyFormatter.format(symbol, budget.amount)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                StatusBadge(status: status),
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    switch (value) {
+                      case 'edit':
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AddBudgetScreen(budget: budget),
+                          ),
+                        );
+                        if (result == true) {
+                          _loadData();
+                        }
+                        break;
+                      case 'delete':
+                        _deleteBudget(budget);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 20),
+                          SizedBox(width: 8),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 20, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Progress bar.
+            FinanceProgressBar(value: progress, status: status),
+            const SizedBox(height: 7),
+
+            // % used + remaining / over.
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$percentUsed% used',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  isOverBudget
+                      ? '${CurrencyFormatter.format(symbol, -remainingAmount)} over'
+                      : '${CurrencyFormatter.format(symbol, remainingAmount)} left',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isOverBudget
+                        ? finance.expense
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+
+            // Muted forecast projection line (suppressed in the first few days
+            // of the month).
+            ?_buildProjectionLine(budget, symbol),
+
+            // Description.
+            if (budget.description != null && budget.description!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                budget.description!,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

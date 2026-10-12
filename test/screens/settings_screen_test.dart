@@ -51,15 +51,16 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Data section lives at the bottom of a scrollable list; bring it into
-    // view before asserting.
+    // view before asserting. The redesign renders the header via SectionHeader,
+    // which uppercases the label to "DATA".
     await tester.scrollUntilVisible(
-      find.text('Data'),
+      find.text('DATA'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Data'), findsOneWidget);
+    expect(find.text('DATA'), findsOneWidget);
     expect(find.text('Export backup (JSON)'), findsOneWidget);
     expect(find.text('Export transactions (CSV)'), findsOneWidget);
     expect(find.text('Restore from backup (JSON)'), findsOneWidget);

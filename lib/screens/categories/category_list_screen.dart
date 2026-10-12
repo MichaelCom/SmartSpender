@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/transaction_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../models/category.dart' as model;
+import '../../utils/currency.dart';
+import '../../widgets/redesign/redesign.dart';
 import 'add_category_screen.dart';
-import '../../widgets/logo_widget.dart';
 
 class CategoryListScreen extends StatefulWidget {
   const CategoryListScreen({super.key});
@@ -21,40 +24,11 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     // Load categories when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<CategoryProvider>(context, listen: false).loadCategories();
+      Provider.of<TransactionProvider>(
+        context,
+        listen: false,
+      ).loadTransactions();
     });
-  }
-
-  Color _hexToColor(String hexString) {
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    return Color(int.parse(buffer.toString(), radix: 16));
-  }
-
-  IconData _getIconData(String iconName) {
-    const Map<String, IconData> iconMap = {
-      'category': Icons.category,
-      'restaurant': Icons.restaurant,
-      'directions_car': Icons.directions_car,
-      'shopping_bag': Icons.shopping_bag,
-      'movie': Icons.movie,
-      'receipt': Icons.receipt,
-      'local_hospital': Icons.local_hospital,
-      'school': Icons.school,
-      'work': Icons.work,
-      'computer': Icons.computer,
-      'trending_up': Icons.trending_up,
-      'card_giftcard': Icons.card_giftcard,
-      'attach_money': Icons.attach_money,
-      'home': Icons.home,
-      'fitness_center': Icons.fitness_center,
-      'local_gas_station': Icons.local_gas_station,
-      'phone': Icons.phone,
-      'wifi': Icons.wifi,
-      'pets': Icons.pets,
-      'child_care': Icons.child_care,
-    };
-    return iconMap[iconName] ?? Icons.category;
   }
 
   List<model.Category> _getFilteredCategories(List<model.Category> categories) {
@@ -112,11 +86,12 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final symbol = context.watch<SettingsController>().currencySymbol;
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 100, height: 100),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Categories'),
+        backgroundColor: colorScheme.surface,
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -124,6 +99,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                 _selectedFilter = value;
               });
             },
+            icon: const Icon(Icons.filter_list),
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'all', child: Text('All Categories')),
               const PopupMenuItem(
@@ -135,12 +111,11 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                 child: Text('Expense Categories'),
               ),
             ],
-            child: const Icon(Icons.filter_list),
           ),
         ],
       ),
-      body: Consumer<CategoryProvider>(
-        builder: (context, categoryProvider, child) {
+      body: Consumer2<CategoryProvider, TransactionProvider>(
+        builder: (context, categoryProvider, transactionProvider, child) {
           if (categoryProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -150,7 +125,11 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: colorScheme.error,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Error: ${categoryProvider.error}',
@@ -179,7 +158,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                   Icon(
                     Icons.category_outlined,
                     size: 64,
-                    color: Colors.grey[400],
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -189,9 +168,9 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                     style: const TextStyle(fontSize: 18),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Tap the + button to add a category',
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -200,90 +179,38 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
 
           return RefreshIndicator(
             onRefresh: () => categoryProvider.loadCategories(),
-            child: ListView.builder(
+            child: ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: filteredCategories.length,
-              itemBuilder: (context, index) {
-                final category = filteredCategories[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: _hexToColor(category.color ?? '#FF6B6B'),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        _getIconData(category.icon ?? 'category'),
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      category.name,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: Text(
-                      category.type.toUpperCase(),
-                      style: TextStyle(
-                        color: category.type == 'income'
-                            ? Colors.green
-                            : Colors.red,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                      ),
-                    ),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) async {
-                        switch (value) {
-                          case 'edit':
-                            final result = await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    AddCategoryScreen(category: category),
-                              ),
-                            );
-                            if (result == true) {
-                              // Category was updated, refresh the list
-                              categoryProvider.loadCategories();
-                            }
-                            break;
-                          case 'delete':
-                            await _deleteCategory(category);
-                            break;
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 20),
-                              SizedBox(width: 8),
-                              Text('Edit'),
-                            ],
+              children: [
+                SectionHeader('${filteredCategories.length} categories'),
+                Card(
+                  margin: EdgeInsets.zero,
+                  color: colorScheme.surfaceContainer,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        for (var i = 0;
+                            i < filteredCategories.length;
+                            i++) ...[
+                          if (i > 0) FinanceListRow.divider(context),
+                          _buildCategoryRow(
+                            context,
+                            categoryProvider,
+                            transactionProvider,
+                            filteredCategories[i],
+                            symbol,
                           ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 20, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text(
-                                'Delete',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
           );
         },
@@ -302,6 +229,85 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           }
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildCategoryRow(
+    BuildContext context,
+    CategoryProvider categoryProvider,
+    TransactionProvider transactionProvider,
+    model.Category category,
+    String symbol,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final categoryId = category.id;
+    final txns = categoryId == null
+        ? const []
+        : transactionProvider.getTransactionsByCategory(categoryId);
+    final count = txns.length;
+    final total = txns.fold<double>(0.0, (sum, t) => sum + t.amount);
+
+    return FinanceListRow(
+      title: category.name,
+      subtitle: '$count ${count == 1 ? 'txn' : 'txns'}',
+      colorHex: category.color,
+      iconName: category.icon,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            CurrencyFormatter.format(symbol, total),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: colorScheme.onSurface,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              switch (value) {
+                case 'edit':
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AddCategoryScreen(category: category),
+                    ),
+                  );
+                  if (result == true) {
+                    categoryProvider.loadCategories();
+                  }
+                  break;
+                case 'delete':
+                  await _deleteCategory(category);
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 8),
+                    Text('Edit'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

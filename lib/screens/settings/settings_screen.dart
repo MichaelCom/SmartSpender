@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/settings_provider.dart';
 import '../../utils/currency.dart';
+import '../../widgets/redesign/redesign.dart';
 import 'data_management_section.dart';
 
 /// Settings screen: Appearance (theme mode) and Currency (display symbol).
@@ -15,95 +16,128 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsController>();
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        backgroundColor: colorScheme.surface,
       ),
       body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          _SectionHeader(label: 'Appearance', context: context),
-          RadioGroup<ThemeMode>(
-            groupValue: settings.themeMode,
-            onChanged: (mode) => _setThemeMode(settings, mode),
-            child: const Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  title: Text('System'),
-                  subtitle: Text('Follow the device theme'),
-                  value: ThemeMode.system,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: Text('Light'),
-                  value: ThemeMode.light,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: Text('Dark'),
-                  value: ThemeMode.dark,
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
-          _SectionHeader(label: 'Currency', context: context),
-          ListTile(
-            leading: const Icon(Icons.attach_money),
-            title: const Text('Display currency'),
-            subtitle: Text(_currencyLabel(settings.currencyCode)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showCurrencyPicker(context, settings),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-            child: Text(
-              'Changes the display symbol only; amounts are not converted.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+          const SectionHeader('Appearance'),
+          _FlatCard(
+            child: RadioGroup<ThemeMode>(
+              groupValue: settings.themeMode,
+              onChanged: (mode) => _setThemeMode(settings, mode),
+              child: const Column(
+                children: [
+                  RadioListTile<ThemeMode>(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('System'),
+                    subtitle: Text('Follow the device theme'),
+                    value: ThemeMode.system,
                   ),
+                  Divider(height: 1),
+                  RadioListTile<ThemeMode>(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Light'),
+                    value: ThemeMode.light,
+                  ),
+                  Divider(height: 1),
+                  RadioListTile<ThemeMode>(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Dark'),
+                    value: ThemeMode.dark,
+                  ),
+                ],
+              ),
             ),
           ),
-          const Divider(),
-          _SectionHeader(label: 'Budget alerts', context: context),
-          ListTile(
-            leading: const Icon(Icons.notifications_active_outlined),
-            title: const Text('Alert threshold'),
-            subtitle: const Text(
-              'Warn when a budget reaches this percentage.',
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+          const SizedBox(height: 4),
+          const SectionHeader('Currency'),
+          _FlatCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  tooltip: 'Decrease',
-                  onPressed: settings.budgetAlertThreshold > 1
-                      ? () => settings.setBudgetAlertThreshold(
-                            settings.budgetAlertThreshold - 5,
-                          )
-                      : null,
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.attach_money),
+                  title: const Text('Display currency'),
+                  subtitle: Text(_currencyLabel(settings.currencyCode)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showCurrencyPicker(context, settings),
                 ),
-                SizedBox(
-                  width: 44,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
                   child: Text(
-                    '${settings.budgetAlertThreshold}%',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    'Changes the display symbol only; amounts are not '
+                    'converted.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: 'Increase',
-                  onPressed: settings.budgetAlertThreshold < 100
-                      ? () => settings.setBudgetAlertThreshold(
-                            settings.budgetAlertThreshold + 5,
-                          )
-                      : null,
                 ),
               ],
             ),
           ),
-          const Divider(),
-          const DataManagementSection(),
+          const SizedBox(height: 4),
+          const SectionHeader('Budget alerts'),
+          _FlatCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.notifications_active_outlined),
+              title: const Text('Alert threshold'),
+              subtitle: const Text(
+                'Warn when a budget reaches this percentage.',
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    tooltip: 'Decrease',
+                    onPressed: settings.budgetAlertThreshold > 1
+                        ? () => settings.setBudgetAlertThreshold(
+                              settings.budgetAlertThreshold - 5,
+                            )
+                        : null,
+                  ),
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      '${settings.budgetAlertThreshold}%',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    tooltip: 'Increase',
+                    onPressed: settings.budgetAlertThreshold < 100
+                        ? () => settings.setBudgetAlertThreshold(
+                              settings.budgetAlertThreshold + 5,
+                            )
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const SectionHeader('Data'),
+          const _FlatCard(child: DataManagementSection()),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Text(
+              'SmartSpender · v1.0.0',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
         ],
       ),
     );
@@ -165,23 +199,26 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.label, required this.context});
+/// A flat, outlined card matching the mockup `.m-card.flat` used for the
+/// Settings groups.
+class _FlatCard extends StatelessWidget {
+  const _FlatCard({required this.child});
 
-  final String label;
-  final BuildContext context;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
+      child: child,
     );
   }
 }

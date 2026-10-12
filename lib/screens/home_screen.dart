@@ -12,12 +12,15 @@ import '../providers/category_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/settings_provider.dart';
+import '../models/transaction.dart';
 import '../utils/currency.dart';
 import '../repositories/repositories.dart';
+import '../theme/finance_colors.dart';
 import '../widgets/logo_widget.dart';
 import '../widgets/demo_data_widget.dart';
 import '../widgets/budget_alert_summary.dart';
 import '../widgets/insight_highlight.dart';
+import '../widgets/redesign/redesign.dart';
 import '../debug_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -48,29 +51,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _selectTab,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectTab,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
             label: 'Transactions',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.category),
+          NavigationDestination(
+            icon: Icon(Icons.category_outlined),
+            selectedIcon: Icon(Icons.category),
             label: 'Categories',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pie_chart),
+          NavigationDestination(
+            icon: Icon(Icons.pie_chart_outline),
+            selectedIcon: Icon(Icons.pie_chart),
             label: 'Budgets',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
+          NavigationDestination(
+            icon: Icon(Icons.analytics_outlined),
+            selectedIcon: Icon(Icons.analytics),
             label: 'Reports',
           ),
         ],
@@ -215,12 +222,13 @@ class _DashboardTabState extends State<DashboardTab> {
   @override
   Widget build(BuildContext context) {
     final currentMonth = DateFormat('MMMM yyyy').format(DateTime.now());
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const LogoWidget(width: 100, height: 100),
         centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: colorScheme.inversePrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -304,273 +312,129 @@ class _DashboardTabState extends State<DashboardTab> {
         ],
       ),
       body: Consumer3<TransactionProvider, CategoryProvider, BudgetProvider>(
-        builder: (context, transactionProvider, categoryProvider, budgetProvider, child) {
+        builder: (context, transactionProvider, categoryProvider,
+            budgetProvider, child) {
           // Calculate current month data
           final now = DateTime.now();
           final currentMonthIncome = transactionProvider.getMonthlyIncome(now);
-          final currentMonthExpenses = transactionProvider.getMonthlyExpenses(
-            now,
-          );
+          final currentMonthExpenses =
+              transactionProvider.getMonthlyExpenses(now);
           final balance = currentMonthIncome - currentMonthExpenses;
           final symbol = context.watch<SettingsController>().currencySymbol;
           final savingsPercentage = currentMonthIncome > 0
               ? ((balance / currentMonthIncome) * 100).round()
               : 0;
 
-          return SingleChildScrollView(
+          final financeColors = Theme.of(context).financeColors;
+
+          final heroPills = <String>[
+            balance >= 0
+                ? '$savingsPercentage% of income saved'
+                : '${savingsPercentage.abs()}% over budget',
+          ];
+
+          return ListView(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Demo Data Widget for Testing
-                const DemoDataWidget(),
-                const SizedBox(height: 16),
-
-                // Budget alerts summary banner (renders nothing when all ok).
-                // Alerts are actionable and sit above the informational insight.
-                BudgetAlertSummary(
-                  onTap: () => widget.onSelectTab?.call(3),
-                ),
-
-                // Top offline insight highlight (renders nothing when none).
-                // Tapping switches to the Reports tab (index 4), whose
-                // "Insights" tab shows the full list.
-                InsightHighlight(
-                  onTap: () => widget.onSelectTab?.call(4),
-                ),
-
-                // Welcome Section
-                Card(
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Financial Overview',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          currentMonth,
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
+            children: [
+              // Financial overview caption (mockup `.muted` line).
+              Padding(
+                padding: const EdgeInsets.fromLTRB(2, 2, 2, 10),
+                child: Text(
+                  'Financial Overview · $currentMonth',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 16),
+              ),
 
-                // Main Financial Summary
-                Card(
-                  elevation: 4,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        // Income and Expenses Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildFinancialCard(
-                                'Total Income',
-                                CurrencyFormatter.format(
-                                    symbol, currentMonthIncome),
-                                Icons.trending_up,
-                                Colors.green,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildFinancialCard(
-                                'Total Expenses',
-                                CurrencyFormatter.format(
-                                    symbol, currentMonthExpenses),
-                                Icons.trending_down,
-                                Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
+              // Gradient "Money left over" / "Over Budget" hero.
+              GradientHero(
+                icon: balance >= 0
+                    ? Icons.account_balance_wallet
+                    : Icons.warning_amber_rounded,
+                label: balance >= 0 ? 'Money left over' : 'Over Budget',
+                amount: CurrencyFormatter.format(symbol, balance.abs()),
+                pills: heroPills,
+              ),
+              const SizedBox(height: 14),
 
-                        // Money Left Over - Main Focus
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: balance >= 0
-                                  ? [Colors.blue.shade400, Colors.blue.shade600]
-                                  : [
-                                      Colors.orange.shade400,
-                                      Colors.orange.shade600,
-                                    ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    (balance >= 0 ? Colors.blue : Colors.orange)
-                                        .withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                balance >= 0
-                                    ? Icons.account_balance_wallet
-                                    : Icons.warning,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                balance >= 0
-                                    ? 'Money Left Over'
-                                    : 'Over Budget',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                CurrencyFormatter.format(symbol, balance.abs()),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  balance >= 0
-                                      ? '$savingsPercentage% of income saved'
-                                      : '${savingsPercentage.abs()}% over budget',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+              // 2-up income / expense tiles.
+              MiniStatRow(
+                tiles: [
+                  MiniStatTile(
+                    label: 'Income',
+                    value: CurrencyFormatter.format(symbol, currentMonthIncome),
+                    icon: Icons.trending_up,
+                    iconColor: financeColors.income,
+                    valueColor: financeColors.income,
                   ),
-                ),
-                const SizedBox(height: 24),
+                  MiniStatTile(
+                    label: 'Expenses',
+                    value:
+                        CurrencyFormatter.format(symbol, currentMonthExpenses),
+                    icon: Icons.trending_down,
+                    iconColor: financeColors.expense,
+                    valueColor: financeColors.expense,
+                  ),
+                ],
+              ),
 
-                // Quick Actions
-                Text(
-                  'Quick Actions',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildQuickActionCard(
-                        context,
-                        'Add Income',
-                        Icons.add_circle,
-                        Colors.green,
-                        () => _navigateToAddTransaction(context, 'income'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildQuickActionCard(
-                        context,
-                        'Add Expense',
-                        Icons.remove_circle,
-                        Colors.red,
-                        () => _navigateToAddTransaction(context, 'expense'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+              // Budget alerts summary banner (renders nothing when all ok).
+              // Alerts are actionable and sit above the informational insight.
+              BudgetAlertSummary(
+                onTap: () => widget.onSelectTab?.call(3),
+              ),
 
-                // Top Categories
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Top Expense  jCategories',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const CategoryListScreen(),
-                          ),
-                        );
-                        // Refresh data when returning
-                        if (context.mounted) {
-                          Provider.of<CategoryProvider>(
-                            context,
-                            listen: false,
-                          ).loadCategories();
-                          Provider.of<TransactionProvider>(
-                            context,
-                            listen: false,
-                          ).loadTransactions();
-                        }
-                      },
-                      child: const Text('View All'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildTopCategoriesList(
-                    transactionProvider, categoryProvider, symbol),
-                const SizedBox(height: 24),
+              // Top offline insight highlight (renders nothing when none).
+              // Tapping switches to the Reports tab (index 4), whose
+              // "Insights" tab shows the full list.
+              InsightHighlight(
+                onTap: () => widget.onSelectTab?.call(4),
+              ),
 
-                // Monthly Breakdown
-                Text(
-                  'This Month Breakdown',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                _buildMonthlyBreakdown(
-                  currentMonthIncome,
-                  currentMonthExpenses,
-                  balance,
-                  symbol,
-                ),
-              ],
-            ),
+              const SizedBox(height: 14),
+
+              // Quick actions.
+              const SectionHeader('Quick actions'),
+              MiniStatRow(
+                tiles: [
+                  MiniStatTile(
+                    label: 'Add income',
+                    icon: Icons.add,
+                    iconColor: financeColors.income,
+                    centred: true,
+                    onTap: () => _navigateToAddTransaction(context, 'income'),
+                  ),
+                  MiniStatTile(
+                    label: 'Add expense',
+                    icon: Icons.remove,
+                    iconColor: financeColors.expense,
+                    centred: true,
+                    onTap: () => _navigateToAddTransaction(context, 'expense'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Recent transactions.
+              const SectionHeader('Recent'),
+              _buildRecentCard(
+                context,
+                transactionProvider,
+                categoryProvider,
+                symbol,
+                financeColors,
+              ),
+
+              const SizedBox(height: 24),
+
+              // Demo data helper (testing aid; renders its own content).
+              const DemoDataWidget(),
+            ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showQuickAddDialog(context);
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -592,136 +456,55 @@ class _DashboardTabState extends State<DashboardTab> {
     }
   }
 
-  Color _hexToColor(String hexString) {
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    return Color(int.parse(buffer.toString(), radix: 16));
+  /// Human-friendly relative day label for a transaction date.
+  String _relativeDay(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(target).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return DateFormat('d MMM').format(date);
   }
 
-  IconData _getIconData(String iconName) {
-    const Map<String, IconData> iconMap = {
-      'category': Icons.category,
-      'restaurant': Icons.restaurant,
-      'directions_car': Icons.directions_car,
-      'shopping_bag': Icons.shopping_bag,
-      'movie': Icons.movie,
-      'receipt': Icons.receipt,
-      'local_hospital': Icons.local_hospital,
-      'school': Icons.school,
-      'work': Icons.work,
-      'computer': Icons.computer,
-      'trending_up': Icons.trending_up,
-      'card_giftcard': Icons.card_giftcard,
-      'attach_money': Icons.attach_money,
-      'home': Icons.home,
-      'fitness_center': Icons.fitness_center,
-      'local_gas_station': Icons.local_gas_station,
-      'phone': Icons.phone,
-      'wifi': Icons.wifi,
-      'pets': Icons.pets,
-      'child_care': Icons.child_care,
-    };
-    return iconMap[iconName] ?? Icons.category;
-  }
-
-  Widget _buildFinancialCard(
-    String title,
-    String amount,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionCard(
+  Widget _buildRecentCard(
     BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopCategoriesList(
     TransactionProvider transactionProvider,
     CategoryProvider categoryProvider,
     String symbol,
+    FinanceColors financeColors,
   ) {
-    // Get category spending summary
-    final categorySpending = transactionProvider.getCategoryExpenseSummary();
+    final colorScheme = Theme.of(context).colorScheme;
+    final recent = transactionProvider.getRecentTransactions(limit: 5);
 
-    if (categorySpending.isEmpty) {
+    if (recent.isEmpty) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             children: [
-              Icon(Icons.category_outlined, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 8),
-              const Text('No expenses yet', style: TextStyle(fontSize: 16)),
+              Icon(
+                Icons.receipt_long_outlined,
+                size: 44,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'No transactions yet',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface,
+                ),
+              ),
               const SizedBox(height: 4),
-              const Text(
-                'Start adding transactions to see your top categories',
-                style: TextStyle(color: Colors.grey),
+              Text(
+                'Add income or an expense to get started.',
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -729,159 +512,42 @@ class _DashboardTabState extends State<DashboardTab> {
       );
     }
 
-    // Sort categories by spending amount and take top 4
-    final sortedCategories = categorySpending.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final topCategories = sortedCategories.take(4).toList();
+    final rows = <Widget>[];
+    for (var i = 0; i < recent.length; i++) {
+      final Transaction txn = recent[i];
+      final category = txn.categoryId != null
+          ? categoryProvider.getCategoryById(txn.categoryId!)
+          : null;
+      final colorHex = txn.categoryColor ?? category?.color;
+      final iconName = txn.categoryIcon ?? category?.icon;
+      final categoryName =
+          txn.categoryName ?? category?.name ?? txn.displayCategoryName;
+      final subtitle = '$categoryName · ${_relativeDay(txn.date)}';
 
-    return Card(
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: topCategories.length,
-        separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final entry = topCategories[index];
-          final category = categoryProvider.getCategoryById(entry.key);
-
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: category != null
-                  ? _hexToColor(category.color ?? '#FF6B6B').withValues(alpha: 0.1)
-                  : Colors.grey.withValues(alpha: 0.1),
-              child: Icon(
-                category != null
-                    ? _getIconData(category.icon ?? 'category')
-                    : Icons.category,
-                color: category != null
-                    ? _hexToColor(category.color ?? '#FF6B6B')
-                    : Colors.grey,
-                size: 20,
-              ),
-            ),
-            title: Text(category?.name ?? 'Unknown Category'),
-            trailing: Text(
-              CurrencyFormatter.format(symbol, entry.value),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMonthlyBreakdown(
-    double income,
-    double expenses,
-    double balance,
-    String symbol,
-  ) {
-    final progressValue = income > 0
-        ? (expenses / income).clamp(0.0, 1.0)
-        : 0.0;
-    final savingsPercentage = income > 0
-        ? ((balance / income) * 100).round()
-        : 0;
+      if (i > 0) rows.add(FinanceListRow.divider(context));
+      rows.add(
+        FinanceListRow(
+          title: (txn.description != null && txn.description!.isNotEmpty)
+              ? txn.description!
+              : categoryName,
+          subtitle: subtitle,
+          colorHex: colorHex,
+          iconName: iconName,
+          amountText: CurrencyFormatter.formatSigned(
+            symbol,
+            txn.amount,
+            isIncome: txn.isIncome,
+          ),
+          amountColor:
+              txn.isIncome ? financeColors.income : financeColors.expense,
+        ),
+      );
+    }
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Income vs Expenses'),
-                Text(
-                  balance >= 0
-                      ? '$savingsPercentage% saved'
-                      : '${savingsPercentage.abs()}% over budget',
-                  style: TextStyle(
-                    color: balance >= 0 ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: progressValue,
-              backgroundColor: Colors.green.withValues(alpha: 0.2),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                progressValue > 1.0 ? Colors.red : Colors.orange,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Spent: ${CurrencyFormatter.format(symbol, expenses)}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-                Text(
-                  balance >= 0
-                      ? 'Remaining: ${CurrencyFormatter.format(symbol, balance)}'
-                      : 'Over: ${CurrencyFormatter.format(symbol, balance.abs())}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showQuickAddDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Quick Add',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _navigateToAddTransaction(context, 'income');
-                    },
-                    icon: const Icon(Icons.add_circle, color: Colors.green),
-                    label: const Text('Add Income'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _navigateToAddTransaction(context, 'expense');
-                    },
-                    icon: const Icon(Icons.remove_circle, color: Colors.red),
-                    label: const Text('Add Expense'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        child: Column(children: rows),
       ),
     );
   }

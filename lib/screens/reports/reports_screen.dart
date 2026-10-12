@@ -8,7 +8,8 @@ import '../../providers/settings_provider.dart';
 import '../../utils/currency.dart';
 import '../../repositories/repositories.dart';
 import '../../services/insights/insights_engine.dart';
-import '../../widgets/logo_widget.dart';
+import '../../theme/finance_colors.dart';
+import '../../widgets/redesign/redesign.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -17,9 +18,16 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ReportsScreenState extends State<ReportsScreen> {
+  static const _tabs = <FilterChipOption>[
+    FilterChipOption(value: 'overview', label: 'Overview'),
+    FilterChipOption(value: 'trends', label: 'Trends'),
+    FilterChipOption(value: 'categories', label: 'Categories'),
+    FilterChipOption(value: 'budget', label: 'Budget'),
+    FilterChipOption(value: 'insights', label: 'Insights'),
+  ];
+
+  String _selectedTab = 'overview';
   String _selectedPeriod = 'This Month';
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
@@ -27,14 +35,7 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
     _updateDateRange();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   void _updateDateRange() {
@@ -60,20 +61,14 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
   }
 
-  Color _hexToColor(String hexString) {
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    return Color(int.parse(buffer.toString(), radix: 16));
-  }
-
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 100, height: 100),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Reports'),
+        backgroundColor: colorScheme.surface,
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -106,33 +101,43 @@ class _ReportsScreenState extends State<ReportsScreen>
             ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.pie_chart), text: 'Overview'),
-            Tab(icon: Icon(Icons.trending_up), text: 'Trends'),
-            Tab(icon: Icon(Icons.category), text: 'Categories'),
-            Tab(icon: Icon(Icons.assessment), text: 'Budget'),
-            Tab(icon: Icon(Icons.lightbulb_outline), text: 'Insights'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildOverviewTab(),
-          _buildTrendsTab(),
-          _buildCategoriesTab(),
-          _buildBudgetTab(),
-          _buildInsightsTab(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: FilterChipScroller(
+              options: _tabs,
+              selected: _selectedTab,
+              onSelected: (value) => setState(() => _selectedTab = value),
+            ),
+          ),
+          Expanded(child: _buildSelectedTab()),
         ],
       ),
     );
   }
 
+  Widget _buildSelectedTab() {
+    switch (_selectedTab) {
+      case 'trends':
+        return _buildTrendsTab();
+      case 'categories':
+        return _buildCategoriesTab();
+      case 'budget':
+        return _buildBudgetTab();
+      case 'insights':
+        return _buildInsightsTab();
+      case 'overview':
+      default:
+        return _buildOverviewTab();
+    }
+  }
+
   Widget _buildInsightsTab() {
     final symbol = context.watch<SettingsController>().currencySymbol;
     final repositories = context.read<AppRepositories>();
+    final colorScheme = Theme.of(context).colorScheme;
     return FutureBuilder<List<Insight>>(
       future:
           InsightsEngine(repositories).buildInsights(currencySymbol: symbol),
@@ -143,14 +148,15 @@ class _ReportsScreenState extends State<ReportsScreen>
 
         final insights = snapshot.data ?? const <Insight>[];
         if (insights.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.lightbulb_outline, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('No insights yet'),
-                Text('Add more transactions to unlock insights'),
+                Icon(Icons.lightbulb_outline,
+                    size: 64, color: colorScheme.onSurfaceVariant),
+                const SizedBox(height: 16),
+                const Text('No insights yet'),
+                const Text('Add more transactions to unlock insights'),
               ],
             ),
           );
@@ -161,23 +167,32 @@ class _ReportsScreenState extends State<ReportsScreen>
           itemCount: insights.length,
           itemBuilder: (context, index) {
             final insight = insights[index];
-            final accent = _insightColor(insight.kind);
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: accent.withValues(alpha: 0.12),
-                  child: Icon(_insightIcon(insight.kind), color: accent),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: InfoBanner(
+                icon: _insightIcon(insight.kind),
+                tone: insight.kind == InsightKind.warning
+                    ? InfoBannerTone.warning
+                    : InfoBannerTone.info,
+                messageWidget: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      insight.title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      insight.detail,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
                 ),
-                title: Text(
-                  insight.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(insight.detail),
-                ),
-                isThreeLine: insight.detail.length > 48,
               ),
             );
           },
@@ -186,25 +201,14 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  Color _insightColor(InsightKind kind) {
+  String _insightIcon(InsightKind kind) {
     switch (kind) {
       case InsightKind.positive:
-        return Colors.green;
+        return '✅';
       case InsightKind.warning:
-        return Colors.amber.shade800;
+        return '⚠️';
       case InsightKind.info:
-        return Colors.blue;
-    }
-  }
-
-  IconData _insightIcon(InsightKind kind) {
-    switch (kind) {
-      case InsightKind.positive:
-        return Icons.check_circle_outline;
-      case InsightKind.warning:
-        return Icons.warning_amber_rounded;
-      case InsightKind.info:
-        return Icons.lightbulb_outline;
+        return '💡';
     }
   }
 
@@ -223,132 +227,106 @@ class _ReportsScreenState extends State<ReportsScreen>
             .where((t) => t.type == 'expense')
             .fold(0.0, (sum, t) => sum + t.amount);
         final balance = totalIncome - totalExpenses;
-        final savingsRate = totalIncome > 0
-            ? (balance / totalIncome * 100)
-            : 0.0;
+        final savingsRate =
+            totalIncome > 0 ? (balance / totalIncome * 100) : 0.0;
+        final finance = Theme.of(context).financeColors;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Period Summary
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$_selectedPeriod Summary',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildSummaryCard(
-                              'Income',
-                              CurrencyFormatter.format(symbol, totalIncome),
-                              Icons.trending_up,
-                              Colors.green,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildSummaryCard(
-                              'Expenses',
-                              CurrencyFormatter.format(symbol, totalExpenses),
-                              Icons.trending_down,
-                              Colors.red,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildSummaryCard(
-                              'Balance',
-                              CurrencyFormatter.format(symbol, balance),
-                              balance >= 0
-                                  ? Icons.account_balance_wallet
-                                  : Icons.warning,
-                              balance >= 0 ? Colors.blue : Colors.orange,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildSummaryCard(
-                              'Savings Rate',
-                              '${savingsRate.toStringAsFixed(1)}%',
-                              Icons.savings,
-                              savingsRate >= 20
-                                  ? Colors.green
-                                  : savingsRate >= 10
-                                  ? Colors.orange
-                                  : Colors.red,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+              MiniStatRow(
+                tiles: [
+                  MiniStatTile(
+                    label: 'Income',
+                    value: CurrencyFormatter.format(symbol, totalIncome),
+                    icon: Icons.trending_up,
+                    iconColor: finance.income,
+                    valueColor: finance.income,
                   ),
-                ),
+                  MiniStatTile(
+                    label: 'Expenses',
+                    value: CurrencyFormatter.format(symbol, totalExpenses),
+                    icon: Icons.trending_down,
+                    iconColor: finance.expense,
+                    valueColor: finance.expense,
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 16),
-
-              // Quick Stats
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Quick Stats',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildStatRow(
-                        'Total Transactions',
-                        '${transactions.length}',
-                      ),
-                      _buildStatRow(
-                        'Average Transaction',
-                        transactions.isNotEmpty
-                            ? CurrencyFormatter.format(
-                                symbol,
-                                transactions.fold(
-                                      0.0,
-                                      (sum, t) => sum + t.amount,
-                                    ) /
-                                    transactions.length,
-                              )
-                            : CurrencyFormatter.format(symbol, 0),
-                      ),
-                      _buildStatRow(
-                        'Largest Expense',
-                        transactions
-                                .where((t) => t.type == 'expense')
-                                .isNotEmpty
-                            ? CurrencyFormatter.format(
-                                symbol,
-                                transactions
-                                    .where((t) => t.type == 'expense')
-                                    .map((t) => t.amount)
-                                    .reduce((a, b) => a > b ? a : b),
-                              )
-                            : CurrencyFormatter.format(symbol, 0),
-                      ),
-                      _buildStatRow(
-                        'Days Tracked',
-                        '${_endDate.difference(_startDate).inDays + 1}',
-                      ),
-                    ],
+              const SizedBox(height: 12),
+              MiniStatRow(
+                tiles: [
+                  MiniStatTile(
+                    label: 'Balance',
+                    value: CurrencyFormatter.format(symbol, balance),
+                    icon: balance >= 0
+                        ? Icons.account_balance_wallet
+                        : Icons.warning,
+                    iconColor:
+                        balance >= 0 ? finance.info : finance.warning,
+                    valueColor:
+                        balance >= 0 ? finance.info : finance.warning,
                   ),
+                  MiniStatTile(
+                    label: 'Savings rate',
+                    value: '${savingsRate.toStringAsFixed(1)}%',
+                    icon: Icons.savings,
+                    iconColor: savingsRate >= 20
+                        ? finance.income
+                        : savingsRate >= 10
+                            ? finance.warning
+                            : finance.expense,
+                    valueColor: savingsRate >= 20
+                        ? finance.income
+                        : savingsRate >= 10
+                            ? finance.warning
+                            : finance.expense,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _ReportCard(
+                title: 'Quick stats',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildStatRow(
+                      'Total transactions',
+                      '${transactions.length}',
+                    ),
+                    _buildStatRow(
+                      'Average transaction',
+                      transactions.isNotEmpty
+                          ? CurrencyFormatter.format(
+                              symbol,
+                              transactions.fold(
+                                    0.0,
+                                    (sum, t) => sum + t.amount,
+                                  ) /
+                                  transactions.length,
+                            )
+                          : CurrencyFormatter.format(symbol, 0),
+                    ),
+                    _buildStatRow(
+                      'Largest expense',
+                      transactions
+                              .where((t) => t.type == 'expense')
+                              .isNotEmpty
+                          ? CurrencyFormatter.format(
+                              symbol,
+                              transactions
+                                  .where((t) => t.type == 'expense')
+                                  .map((t) => t.amount)
+                                  .reduce((a, b) => a > b ? a : b),
+                            )
+                          : CurrencyFormatter.format(symbol, 0),
+                    ),
+                    _buildStatRow(
+                      'Days tracked',
+                      '${_endDate.difference(_startDate).inDays + 1}',
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -360,72 +338,43 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildTrendsTab() {
     final symbol = context.watch<SettingsController>().currencySymbol;
+    final finance = Theme.of(context).financeColors;
     return Consumer<TransactionProvider>(
       builder: (context, transactionProvider, child) {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Income vs Expenses Trend (Last 6 Months)',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Income'),
-                          const SizedBox(width: 24),
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Expenses'),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 200,
-                        child: _buildTrendChart(transactionProvider, symbol),
-                      ),
-                    ],
-                  ),
+              _ReportCard(
+                title: 'Income vs expenses',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _LegendDot(color: finance.income),
+                        const SizedBox(width: 8),
+                        const Text('Income'),
+                        const SizedBox(width: 24),
+                        _LegendDot(color: finance.expense),
+                        const SizedBox(width: 8),
+                        const Text('Expenses'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 200,
+                      child: _buildTrendChart(transactionProvider, symbol),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Trend Insights',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      ..._buildTrendInsights(transactionProvider, symbol),
-                    ],
-                  ),
+              const SizedBox(height: 14),
+              _ReportCard(
+                title: 'Trend insights',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _buildTrendInsights(transactionProvider, symbol),
                 ),
               ),
             ],
@@ -437,20 +386,22 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildCategoriesTab() {
     final symbol = context.watch<SettingsController>().currencySymbol;
+    final colorScheme = Theme.of(context).colorScheme;
     return Consumer2<TransactionProvider, CategoryProvider>(
       builder: (context, transactionProvider, categoryProvider, child) {
-        final categorySpending = transactionProvider
-            .getCategoryExpenseSummary();
+        final categorySpending =
+            transactionProvider.getCategoryExpenseSummary();
 
         if (categorySpending.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.pie_chart_outline, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('No expense data available'),
-                Text('Add some transactions to see category breakdown'),
+                Icon(Icons.pie_chart_outline,
+                    size: 64, color: colorScheme.onSurfaceVariant),
+                const SizedBox(height: 16),
+                const Text('No expense data available'),
+                const Text('Add some transactions to see category breakdown'),
               ],
             ),
           );
@@ -460,76 +411,54 @@ class _ReportsScreenState extends State<ReportsScreen>
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Spending by Category',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 200,
-                        child: _buildCategoryPieChart(
-                          categorySpending,
-                          categoryProvider,
-                        ),
-                      ),
-                    ],
+              _ReportCard(
+                title: 'Spending by category',
+                child: SizedBox(
+                  height: 220,
+                  child: _buildCategoryPieChart(
+                    categorySpending,
+                    categoryProvider,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Category Details',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      ...categorySpending.entries.map((entry) {
-                        final category = categoryProvider.getCategoryById(
-                          entry.key,
-                        );
-                        final percentage =
-                            (entry.value /
-                            categorySpending.values.fold(0.0, (a, b) => a + b) *
-                            100);
+              const SizedBox(height: 14),
+              _ReportCard(
+                title: 'Category details',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: categorySpending.entries.map((entry) {
+                    final category =
+                        categoryProvider.getCategoryById(entry.key);
+                    final percentage = (entry.value /
+                        categorySpending.values.fold(0.0, (a, b) => a + b) *
+                        100);
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: category != null
-                                      ? _hexToColor(category.color ?? '#FF6B6B')
-                                      : Colors.grey,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(category?.name ?? 'Unknown'),
-                              ),
-                              Text('${percentage.toStringAsFixed(1)}%'),
-                              const SizedBox(width: 8),
-                              Text(CurrencyFormatter.format(symbol, entry.value)),
-                            ],
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          _LegendDot(
+                            color: category != null
+                                ? categoryColorFromHex(category.color)
+                                : colorScheme.onSurfaceVariant,
                           ),
-                        );
-                      }),
-                    ],
-                  ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(category?.name ?? 'Unknown'),
+                          ),
+                          Text('${percentage.toStringAsFixed(1)}%'),
+                          const SizedBox(width: 8),
+                          Text(
+                            CurrencyFormatter.format(symbol, entry.value),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ],
@@ -541,19 +470,23 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildBudgetTab() {
     final symbol = context.watch<SettingsController>().currencySymbol;
+    final colorScheme = Theme.of(context).colorScheme;
+    final finance = Theme.of(context).financeColors;
     return Consumer3<BudgetProvider, TransactionProvider, CategoryProvider>(
-      builder: (context, budgetProvider, transactionProvider, categoryProvider, child) {
+      builder:
+          (context, budgetProvider, transactionProvider, categoryProvider, child) {
         final activeBudgets = budgetProvider.activeBudgets;
 
         if (activeBudgets.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.assessment_outlined, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('No active budgets'),
-                Text('Create budgets to track your spending goals'),
+                Icon(Icons.assessment_outlined,
+                    size: 64, color: colorScheme.onSurfaceVariant),
+                const SizedBox(height: 16),
+                const Text('No active budgets'),
+                const Text('Create budgets to track your spending goals'),
               ],
             ),
           );
@@ -577,113 +510,62 @@ class _ReportsScreenState extends State<ReportsScreen>
                 budget,
                 spent,
               );
+              final status = isOverBudget
+                  ? BudgetStatus.over
+                  : (progress >= 0.9
+                      ? BudgetStatus.nearing
+                      : BudgetStatus.onTrack);
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              category?.name ?? 'Unknown Category',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+              return _ReportCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            category?.name ?? 'Unknown Category',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                          Text(
-                            budget.period.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('${CurrencyFormatter.format(symbol, spent)} spent'),
-                          Text('${CurrencyFormatter.format(symbol, budget.amount)} budget'),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: progress,
-                        backgroundColor: Colors.grey[300],
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isOverBudget ? Colors.red : Colors.green,
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isOverBudget
-                            ? 'Over budget by ${CurrencyFormatter.format(symbol, spent - budget.amount)}'
-                            : '${CurrencyFormatter.format(symbol, budget.amount - spent)} remaining',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isOverBudget ? Colors.red : Colors.green,
+                        StatusBadge(
+                          status: status,
+                          label: budget.period.toUpperCase(),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${CurrencyFormatter.format(symbol, spent)} spent',
+                        ),
+                        Text(
+                          '${CurrencyFormatter.format(symbol, budget.amount)} budget',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    FinanceProgressBar(value: progress, status: status),
+                    const SizedBox(height: 6),
+                    Text(
+                      isOverBudget
+                          ? 'Over budget by ${CurrencyFormatter.format(symbol, spent - budget.amount)}'
+                          : '${CurrencyFormatter.format(symbol, budget.amount - spent)} remaining',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isOverBudget ? finance.expense : finance.income,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               );
             }).toList(),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildSummaryCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -694,7 +576,13 @@ class _ReportsScreenState extends State<ReportsScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
         ],
       ),
     );
@@ -705,30 +593,35 @@ class _ReportsScreenState extends State<ReportsScreen>
     String symbol,
   ) {
     final monthlyData = _getMonthlyTrendData(transactionProvider);
-    
+    final colorScheme = Theme.of(context).colorScheme;
+    final finance = Theme.of(context).financeColors;
+
     if (monthlyData.isEmpty) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.show_chart, size: 48, color: Colors.grey),
-              SizedBox(height: 8),
-              Text('No data available'),
-              Text('Add transactions to see trends', style: TextStyle(color: Colors.grey)),
-            ],
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.show_chart,
+                size: 48, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: 8),
+            const Text('No data available'),
+            Text('Add transactions to see trends',
+                style: TextStyle(color: colorScheme.onSurfaceVariant)),
+          ],
         ),
       );
     }
 
+    final axisStyle = TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant);
+
     return LineChart(
       LineChartData(
-        gridData: FlGridData(show: true, drawVerticalLine: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: colorScheme.outlineVariant, strokeWidth: 1),
+        ),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -736,7 +629,7 @@ class _ReportsScreenState extends State<ReportsScreen>
               reservedSize: 60,
               getTitlesWidget: (value, meta) {
                 return Text(CurrencyFormatter.formatCompact(symbol, value),
-                    style: const TextStyle(fontSize: 10));
+                    style: axisStyle);
               },
             ),
           ),
@@ -748,29 +641,37 @@ class _ReportsScreenState extends State<ReportsScreen>
                 final index = value.toInt();
                 return Text(
                   index < months.length ? months[index] : '',
-                  style: const TextStyle(fontSize: 10),
+                  style: axisStyle,
                 );
               },
             ),
           ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
         lineBarsData: [
           LineChartBarData(
-            spots: monthlyData.asMap().entries.map((e) => 
-                FlSpot(e.key.toDouble(), e.value['income']!)).toList(),
+            spots: monthlyData
+                .asMap()
+                .entries
+                .map((e) => FlSpot(e.key.toDouble(), e.value['income']!))
+                .toList(),
             isCurved: true,
-            color: Colors.green,
+            color: finance.income,
             barWidth: 3,
             dotData: const FlDotData(show: true),
           ),
           LineChartBarData(
-            spots: monthlyData.asMap().entries.map((e) => 
-                FlSpot(e.key.toDouble(), e.value['expense']!)).toList(),
+            spots: monthlyData
+                .asMap()
+                .entries
+                .map((e) => FlSpot(e.key.toDouble(), e.value['expense']!))
+                .toList(),
             isCurved: true,
-            color: Colors.red,
+            color: finance.expense,
             barWidth: 3,
             dotData: const FlDotData(show: true),
           ),
@@ -779,29 +680,30 @@ class _ReportsScreenState extends State<ReportsScreen>
     );
   }
 
-  List<Map<String, double>> _getMonthlyTrendData(TransactionProvider transactionProvider) {
+  List<Map<String, double>> _getMonthlyTrendData(
+      TransactionProvider transactionProvider) {
     final now = DateTime.now();
     final monthlyData = <Map<String, double>>[];
-    
+
     for (int i = 5; i >= 0; i--) {
       final month = DateTime(now.year, now.month - i, 1);
       final nextMonth = DateTime(now.year, now.month - i + 1, 1);
-      
+
       final monthTransactions = transactionProvider.transactions.where((t) =>
           t.date.isAfter(month.subtract(const Duration(days: 1))) &&
           t.date.isBefore(nextMonth)).toList();
-      
+
       final income = monthTransactions
           .where((t) => t.type == 'income')
           .fold(0.0, (sum, t) => sum + t.amount);
-      
+
       final expense = monthTransactions
           .where((t) => t.type == 'expense')
           .fold(0.0, (sum, t) => sum + t.amount);
-      
+
       monthlyData.add({'income': income, 'expense': expense});
     }
-    
+
     return monthlyData;
   }
 
@@ -810,26 +712,33 @@ class _ReportsScreenState extends State<ReportsScreen>
     String symbol,
   ) {
     final monthlyData = _getMonthlyTrendData(transactionProvider);
-    
+    final finance = Theme.of(context).financeColors;
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (monthlyData.length < 2) {
       return [
         const Text('Need more data to show insights'),
-        const Text('Add transactions from multiple months', 
-            style: TextStyle(color: Colors.grey)),
+        Text('Add transactions from multiple months',
+            style: TextStyle(color: colorScheme.onSurfaceVariant)),
       ];
     }
 
     final insights = <Widget>[];
-    
+
     // Calculate average monthly income/expense
-    final avgIncome = monthlyData.map((m) => m['income']!).reduce((a, b) => a + b) / monthlyData.length;
-    final avgExpense = monthlyData.map((m) => m['expense']!).reduce((a, b) => a + b) / monthlyData.length;
-    
+    final avgIncome =
+        monthlyData.map((m) => m['income']!).reduce((a, b) => a + b) /
+            monthlyData.length;
+    final avgExpense =
+        monthlyData.map((m) => m['expense']!).reduce((a, b) => a + b) /
+            monthlyData.length;
+
     // Net savings trend
     final netSavings = avgIncome - avgExpense;
-    final savingsColor = netSavings >= 0 ? Colors.green : Colors.red;
-    final savingsIcon = netSavings >= 0 ? Icons.trending_up : Icons.trending_down;
-    
+    final savingsColor = netSavings >= 0 ? finance.income : finance.expense;
+    final savingsIcon =
+        netSavings >= 0 ? Icons.trending_up : Icons.trending_down;
+
     insights.add(
       Row(
         children: [
@@ -843,13 +752,17 @@ class _ReportsScreenState extends State<ReportsScreen>
         ],
       ),
     );
-    
+
     // Spending trend
     if (monthlyData.length >= 3) {
-      final recentExpense = (monthlyData.last['expense']! + monthlyData[monthlyData.length - 2]['expense']!) / 2;
-      final olderExpense = (monthlyData.first['expense']! + monthlyData[1]['expense']!) / 2;
-      final expenseChange = ((recentExpense - olderExpense) / olderExpense * 100);
-      
+      final recentExpense = (monthlyData.last['expense']! +
+              monthlyData[monthlyData.length - 2]['expense']!) /
+          2;
+      final olderExpense =
+          (monthlyData.first['expense']! + monthlyData[1]['expense']!) / 2;
+      final expenseChange =
+          ((recentExpense - olderExpense) / olderExpense * 100);
+
       if (expenseChange.abs() > 5) {
         insights.add(const SizedBox(height: 8));
         insights.add(
@@ -857,7 +770,7 @@ class _ReportsScreenState extends State<ReportsScreen>
             children: [
               Icon(
                 expenseChange > 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                color: expenseChange > 0 ? Colors.red : Colors.green,
+                color: expenseChange > 0 ? finance.expense : finance.income,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -866,7 +779,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 '${expenseChange.abs().toStringAsFixed(1)}%',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: expenseChange > 0 ? Colors.red : Colors.green,
+                  color: expenseChange > 0 ? finance.expense : finance.income,
                 ),
               ),
               const Text(' recently'),
@@ -875,8 +788,10 @@ class _ReportsScreenState extends State<ReportsScreen>
         );
       }
     }
-    
-    return insights.isEmpty ? [const Text('No significant trends detected')] : insights;
+
+    return insights.isEmpty
+        ? [const Text('No significant trends detected')]
+        : insights;
   }
 
   Widget _buildCategoryPieChart(
@@ -884,37 +799,85 @@ class _ReportsScreenState extends State<ReportsScreen>
     CategoryProvider categoryProvider,
   ) {
     final total = categorySpending.values.fold(0.0, (a, b) => a + b);
+    final colorScheme = Theme.of(context).colorScheme;
 
     // fl_chart 1.x asserts that PieChartSectionData.value is > 0, so filter out
     // any zero/negative entries before building sections.
     final sections = categorySpending.entries
         .where((entry) => entry.value > 0)
         .map((entry) {
-          final category = categoryProvider.getCategoryById(entry.key);
-          final percentage = total > 0 ? (entry.value / total * 100) : 0.0;
+      final category = categoryProvider.getCategoryById(entry.key);
+      final percentage = total > 0 ? (entry.value / total * 100) : 0.0;
 
-          return PieChartSectionData(
-            color: category != null
-                ? _hexToColor(category.color ?? '#FF6B6B')
-                : Colors.grey,
-            value: entry.value,
-            title: '${percentage.toStringAsFixed(1)}%',
-            radius: 60,
-            titleStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          );
-        })
-        .toList();
+      return PieChartSectionData(
+        color: category != null
+            ? categoryColorFromHex(category.color)
+            : colorScheme.onSurfaceVariant,
+        value: entry.value,
+        title: '${percentage.toStringAsFixed(1)}%',
+        radius: 44,
+        titleStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }).toList();
 
     return PieChart(
       PieChartData(
         sections: sections,
-        centerSpaceRadius: 40,
+        // Donut inner radius ~60% of the outer edge.
+        centerSpaceRadius: 66,
         sectionsSpace: 2,
       ),
+    );
+  }
+}
+
+/// A styled report card matching the mockup `.m-card`, with an optional
+/// uppercase section title.
+class _ReportCard extends StatelessWidget {
+  const _ReportCard({this.title, required this.child});
+
+  final String? title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null) ...[
+            SectionHeader(title!, padding: const EdgeInsets.only(bottom: 10)),
+          ],
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

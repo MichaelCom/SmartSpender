@@ -37,56 +37,50 @@ class _DataManagementSectionState extends State<DataManagementSection> {
 
   @override
   Widget build(BuildContext context) {
+    final busyTrailing = _busy
+        ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(label: 'Data'),
         ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.backup_outlined),
           title: const Text('Export backup (JSON)'),
           subtitle: const Text('Full backup you can restore later'),
-          trailing: _busy
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.ios_share),
+          trailing: busyTrailing ?? const Icon(Icons.ios_share),
           enabled: !_busy,
           onTap: _busy ? null : _exportJson,
         ),
+        const Divider(height: 1),
         ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.table_chart_outlined),
           title: const Text('Export transactions (CSV)'),
           subtitle: const Text('Transactions only, for spreadsheets'),
-          trailing: _busy
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.ios_share),
+          trailing: busyTrailing ?? const Icon(Icons.ios_share),
           enabled: !_busy,
           onTap: _busy ? null : _exportCsv,
         ),
+        const Divider(height: 1),
         ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.restore),
           title: const Text('Restore from backup (JSON)'),
           subtitle: const Text('Replaces all current data'),
-          trailing: _busy
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.chevron_right),
+          trailing: busyTrailing ?? const Icon(Icons.chevron_right),
           enabled: !_busy,
           onTap: _busy ? null : _restoreJson,
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
           child: Text(
-            'Backups store raw amounts as-is; no currency conversion is applied.',
+            'Backups store raw amounts as-is; no currency conversion is '
+            'applied.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -270,25 +264,5 @@ class _DataManagementSectionState extends State<DataManagementSection> {
         '${two(now.month)}${two(now.day)}';
     final time = '${two(now.hour)}${two(now.minute)}${two(now.second)}';
     return '$date-$time';
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-      ),
-    );
   }
 }

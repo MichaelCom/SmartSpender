@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/budget_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../models/category.dart';
 import '../../models/budget.dart';
+import '../../widgets/redesign/redesign.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   final Budget? budget;
   final bool isIncomeCategory;
-  
+
   const AddBudgetScreen({
-    super.key, 
+    super.key,
     this.budget,
     this.isIncomeCategory = false,
   });
@@ -47,9 +50,12 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     _startDate = budget.startDate;
     _endDate = budget.endDate;
     _descriptionController.text = budget.description ?? '';
-    
+
     // Load the category
-    final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
+    final categoryProvider = Provider.of<CategoryProvider>(
+      context,
+      listen: false,
+    );
     _selectedCategory = categoryProvider.getCategoryById(budget.categoryKey);
   }
 
@@ -59,12 +65,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         _endDate = _startDate.add(const Duration(days: 7));
         break;
       case 'monthly':
-        _endDate = DateTime(_startDate.year, _startDate.month + 1, _startDate.day)
-            .subtract(const Duration(days: 1));
+        _endDate =
+            DateTime(_startDate.year, _startDate.month + 1, _startDate.day)
+                .subtract(const Duration(days: 1));
         break;
       case 'yearly':
-        _endDate = DateTime(_startDate.year + 1, _startDate.month, _startDate.day)
-            .subtract(const Duration(days: 1));
+        _endDate =
+            DateTime(_startDate.year + 1, _startDate.month, _startDate.day)
+                .subtract(const Duration(days: 1));
         break;
     }
   }
@@ -78,7 +86,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
   Future<void> _saveEntry() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -94,10 +102,13 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     });
 
     try {
-      final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+      final budgetProvider = Provider.of<BudgetProvider>(
+        context,
+        listen: false,
+      );
       final amount = double.parse(_amountController.text);
       final description = _descriptionController.text.trim();
-      
+
       // Check for conflicting budgets
       final hasConflict = budgetProvider.hasConflictingBudget(
         _selectedCategory!.key!,
@@ -105,11 +116,13 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         _endDate,
         excludeBudgetKey: widget.budget?.key,
       );
-      
+
       if (hasConflict) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('A budget already exists for this category in the selected period'),
+            content: Text(
+              'A budget already exists for this category in the selected period',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -160,7 +173,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              budgetProvider.error ?? 'Failed to ${widget.budget == null ? 'create' : 'update'} budget',
+              budgetProvider.error ??
+                  'Failed to ${widget.budget == null ? 'create' : 'update'} budget',
             ),
             backgroundColor: Colors.red,
           ),
@@ -169,10 +183,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
       setState(() {
@@ -184,11 +195,13 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.budget != null;
-    
+    final colorScheme = Theme.of(context).colorScheme;
+    final symbol = context.watch<SettingsController>().currencySymbol;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('${isEditing ? 'Edit' : 'Add'} Budget'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: const BackButton(),
+        title: Text('${isEditing ? 'Edit' : 'Add'} budget'),
         actions: [
           if (_isLoading)
             const Padding(
@@ -208,302 +221,198 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Card
-              Card(
-                color: Colors.blue.withValues(alpha: 0.1),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.account_balance_wallet,
-                        color: Colors.blue,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Create Budget',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                            Text(
-                              'Set spending limits for categories',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+          children: [
+            // Category chips
+            _FieldLabel('Category', colorScheme: colorScheme),
+            const SizedBox(height: 6),
+            Consumer<CategoryProvider>(
+              builder: (context, categoryProvider, child) {
+                final categories = widget.isIncomeCategory
+                    ? categoryProvider.incomeCategories
+                    : categoryProvider.expenseCategories;
 
-              // Category Selection
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Category',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Consumer<CategoryProvider>(
-                        builder: (context, categoryProvider, child) {
-                          final categories = widget.isIncomeCategory 
-                              ? categoryProvider.incomeCategories
-                              : categoryProvider.expenseCategories;
-                          
-                          return DropdownButtonFormField<Category>(
-                            initialValue: _selectedCategory,
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.category),
-                            ),
-                            hint: const Text('Select a category'),
-                            items: categories.map((category) {
-                              return DropdownMenuItem<Category>(
-                                value: category,
-                                child: Row(
-                                  children: [
-                                    Text(category.icon ?? '📁'),
-                                    const SizedBox(width: 8),
-                                    Text(category.name),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (Category? value) {
-                              setState(() {
-                                _selectedCategory = value;
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null) {
-                                return 'Please select a category';
-                              }
-                              return null;
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                if (categories.isEmpty) {
+                  return const InfoBanner(
+                    icon: '🏷️',
+                    message: 'No categories yet. Add categories first.',
+                  );
+                }
 
-              // Amount Input
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Budget Amount',
-                        style: Theme.of(context).textTheme.titleMedium,
+                return FilterChipScroller(
+                  options: [
+                    for (final category in categories)
+                      FilterChipOption(
+                        value: category.key.toString(),
+                        label: category.name,
                       ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _amountController,
-                        decoration: const InputDecoration(
-                          hintText: '0.00',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.attach_money),
-                          prefixText: 'R',
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                        ],
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter an amount';
-                          }
-                          final amount = double.tryParse(value);
-                          if (amount == null || amount <= 0) {
-                            return 'Please enter a valid amount';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                  ],
+                  selected: _selectedCategory?.key?.toString() ?? '',
+                  onSelected: (value) {
+                    final key = int.tryParse(value);
+                    setState(() {
+                      _selectedCategory = key == null
+                          ? null
+                          : categoryProvider.getCategoryById(key);
+                    });
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 16),
 
-              // Period Selection
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Budget Period',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedPeriod,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.schedule),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                          DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                          DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
-                        ],
-                        onChanged: (String? value) {
-                          setState(() {
-                            _selectedPeriod = value!;
-                            _updateEndDate();
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+            // Amount
+            _FieldLabel('Budget amount', colorScheme: colorScheme),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _amountController,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+              ),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: '0.00',
+                prefixText: '$symbol ',
+                prefixStyle: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 16),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              ],
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter an amount';
+                }
+                final amount = double.tryParse(value);
+                if (amount == null || amount <= 0) {
+                  return 'Please enter a valid amount';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
 
-              // Date Range
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Budget Period',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final date = await showDatePicker(
-                                  context: context,
-                                  initialDate: _startDate,
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (date != null) {
-                                  setState(() {
-                                    _startDate = date;
-                                    _updateEndDate();
-                                  });
-                                }
-                              },
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  labelText: 'Start Date',
-                                  prefixIcon: Icon(Icons.calendar_today),
-                                ),
-                                child: Text(
-                                  '${_startDate.day}/${_startDate.month}/${_startDate.year}',
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: InputDecorator(
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: 'End Date',
-                                prefixIcon: Icon(Icons.event),
-                              ),
-                              child: Text(
-                                '${_endDate.day}/${_endDate.month}/${_endDate.year}',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+            // Period
+            _FieldLabel('Period', colorScheme: colorScheme),
+            const SizedBox(height: 6),
+            FilterChipScroller(
+              options: const [
+                FilterChipOption(value: 'weekly', label: 'Weekly'),
+                FilterChipOption(value: 'monthly', label: 'Monthly'),
+                FilterChipOption(value: 'yearly', label: 'Yearly'),
+              ],
+              selected: _selectedPeriod,
+              onSelected: (value) {
+                setState(() {
+                  _selectedPeriod = value;
+                  _updateEndDate();
+                });
+              },
+            ),
+            const SizedBox(height: 16),
 
-              // Description Input
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Description (Optional)',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: const InputDecoration(
-                          hintText: 'Add a note about this budget...',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.note),
-                        ),
-                        maxLines: 3,
-                      ),
-                    ],
-                  ),
+            // Start date
+            _FieldLabel('Start date', colorScheme: colorScheme),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _startDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) {
+                  setState(() {
+                    _startDate = date;
+                    _updateEndDate();
+                  });
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                child: Text(
+                  DateFormat('d MMMM y').format(_startDate),
+                  style: const TextStyle(fontSize: 15),
                 ),
               ),
-              const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 16),
 
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveEntry,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.all(16),
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Text(
-                          isEditing ? 'Update Budget' : 'Create Budget',
-                          style: const TextStyle(fontSize: 16),
-                        ),
+            // End date (auto-derived, read-only)
+            _FieldLabel('End date', colorScheme: colorScheme),
+            const SizedBox(height: 6),
+            InputDecorator(
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.event),
+              ),
+              child: Text(
+                DateFormat('d MMMM y').format(_endDate),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+
+            // Description (optional)
+            _FieldLabel('Description (optional)', colorScheme: colorScheme),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.note),
+                hintText: 'Add a note about this budget…',
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+
+            // Conflict-warning / info banner
+            const InfoBanner(
+              icon: '💡',
+              tone: InfoBannerTone.warning,
+              message:
+                  "End date is set automatically from the period. You'll be "
+                  'warned if a budget already exists for this category + period.',
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.label, {required this.colorScheme});
+
+  final String label;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: colorScheme.onSurfaceVariant,
       ),
     );
   }

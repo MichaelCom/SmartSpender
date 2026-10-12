@@ -5,10 +5,12 @@ import '../../providers/transaction_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/transaction.dart' as model;
+import '../../models/category.dart' as cat_model;
 import '../../utils/currency.dart';
 import '../../services/insights/anomaly_engine.dart';
+import '../../theme/finance_colors.dart';
+import '../../widgets/redesign/redesign.dart';
 import 'add_transaction_screen.dart';
-import '../../widgets/logo_widget.dart';
 
 class TransactionListScreen extends StatefulWidget {
   const TransactionListScreen({super.key});
@@ -18,7 +20,9 @@ class TransactionListScreen extends StatefulWidget {
 }
 
 class _TransactionListScreenState extends State<TransactionListScreen> {
-  String _selectedFilter = 'all'; // 'all', 'income', 'expense'
+  // Combined filter token: 'all', 'income', 'expense', or 'cat:<id>'.
+  String _selectedFilter = 'all';
+  bool _searchVisible = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -31,6 +35,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
         context,
         listen: false,
       ).loadTransactions();
+      Provider.of<CategoryProvider>(context, listen: false).loadCategories();
     });
   }
 
@@ -40,52 +45,19 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     super.dispose();
   }
 
-  Color _hexToColor(String hexString) {
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    return Color(int.parse(buffer.toString(), radix: 16));
-  }
-
-  IconData _getIconData(String iconName) {
-    const Map<String, IconData> iconMap = {
-      'category': Icons.category,
-      'restaurant': Icons.restaurant,
-      'directions_car': Icons.directions_car,
-      'shopping_bag': Icons.shopping_bag,
-      'movie': Icons.movie,
-      'receipt': Icons.receipt,
-      'local_hospital': Icons.local_hospital,
-      'school': Icons.school,
-      'work': Icons.work,
-      'computer': Icons.computer,
-      'trending_up': Icons.trending_up,
-      'card_giftcard': Icons.card_giftcard,
-      'attach_money': Icons.attach_money,
-      'home': Icons.home,
-      'fitness_center': Icons.fitness_center,
-      'local_gas_station': Icons.local_gas_station,
-      'phone': Icons.phone,
-      'wifi': Icons.wifi,
-      'pets': Icons.pets,
-      'child_care': Icons.child_care,
-    };
-    return iconMap[iconName] ?? Icons.category;
-  }
-
   List<model.Transaction> _getFilteredTransactions(
     List<model.Transaction> transactions,
   ) {
     var filtered = transactions;
 
-    // Filter by type
-    switch (_selectedFilter) {
-      case 'income':
-        filtered = filtered.where((t) => t.type == 'income').toList();
-        break;
-      case 'expense':
-        filtered = filtered.where((t) => t.type == 'expense').toList();
-        break;
+    // Filter by type / category.
+    if (_selectedFilter == 'income') {
+      filtered = filtered.where((t) => t.type == 'income').toList();
+    } else if (_selectedFilter == 'expense') {
+      filtered = filtered.where((t) => t.type == 'expense').toList();
+    } else if (_selectedFilter.startsWith('cat:')) {
+      final id = int.tryParse(_selectedFilter.substring(4));
+      filtered = filtered.where((t) => t.categoryId == id).toList();
     }
 
     // Filter by search query
@@ -99,6 +71,16 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     }
 
     return filtered;
+  }
+
+  /// Buckets a transaction date into TODAY / YESTERDAY / EARLIER.
+  String _dayGroup(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    if (d == today) return 'TODAY';
+    if (d == today.subtract(const Duration(days: 1))) return 'YESTERDAY';
+    return 'EARLIER';
   }
 
   /// Shows the reason an expense was flagged as unusually large.
@@ -125,14 +107,14 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.amber[700]),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Theme.of(context).financeColors.warning,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Unusually large',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -161,7 +143,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Transaction'),
-        content: Text('Are you sure you want to delete this transaction?'),
+        content: const Text(
+          'Are you sure you want to delete this transaction?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -200,21 +184,48 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     }
   }
 
+  List<FilterChipOption> _buildChipOptions(List<cat_model.Category> categories) {
+    return [
+      const FilterChipOption(value: 'all', label: 'All'),
+      const FilterChipOption(value: 'income', label: 'Income'),
+      const FilterChipOption(value: 'expense', label: 'Expenses'),
+      for (final c in categories)
+        if (c.id != null)
+          FilterChipOption(value: 'cat:${c.id}', label: c.name),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final finance = Theme.of(context).financeColors;
     final symbol = context.watch<SettingsController>().currencySymbol;
     return Scaffold(
       appBar: AppBar(
-        title: const LogoWidget(width: 100, height: 100),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Transactions'),
+        backgroundColor: colorScheme.surface,
         actions: [
+          IconButton(
+            icon: Icon(_searchVisible ? Icons.search_off : Icons.search),
+            tooltip: 'Search',
+            onPressed: () {
+              setState(() {
+                _searchVisible = !_searchVisible;
+                if (!_searchVisible) {
+                  _searchController.clear();
+                  _searchQuery = '';
+                }
+              });
+            },
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               setState(() {
                 _selectedFilter = value;
               });
             },
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Filter',
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: 'all',
@@ -226,170 +237,61 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                 child: Text('Expenses Only'),
               ),
             ],
-            child: const Icon(Icons.filter_list),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search transactions...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+          // Search Bar (toggled from the AppBar)
+          if (_searchVisible)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Search transactions...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
             ),
-          ),
 
-          // Summary Cards
-          Consumer<TransactionProvider>(
-            builder: (context, transactionProvider, child) {
+          // Filter chips (All / Income / Expenses + category chips)
+          Consumer<CategoryProvider>(
+            builder: (context, categoryProvider, child) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Card(
-                        color: Colors.green[50],
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Income',
-                                style: TextStyle(
-                                  color: Colors.green[700],
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  CurrencyFormatter.format(
-                                    symbol,
-                                    transactionProvider.totalIncome,
-                                  ),
-                                  style: TextStyle(
-                                    color: Colors.green[700],
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Card(
-                        color: Colors.red[50],
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Expenses',
-                                style: TextStyle(
-                                  color: Colors.red[700],
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  CurrencyFormatter.format(
-                                    symbol,
-                                    transactionProvider.totalExpenses,
-                                  ),
-                                  style: TextStyle(
-                                    color: Colors.red[700],
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Card(
-                        color: transactionProvider.balance >= 0
-                            ? Colors.blue[50]
-                            : Colors.orange[50],
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Balance',
-                                style: TextStyle(
-                                  color: transactionProvider.balance >= 0
-                                      ? Colors.blue[700]
-                                      : Colors.orange[700],
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  CurrencyFormatter.format(
-                                    symbol,
-                                    transactionProvider.balance,
-                                  ),
-                                  style: TextStyle(
-                                    color: transactionProvider.balance >= 0
-                                        ? Colors.blue[700]
-                                        : Colors.orange[700],
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: FilterChipScroller(
+                  options: _buildChipOptions(categoryProvider.categories),
+                  selected: _selectedFilter,
+                  onSelected: (value) {
+                    setState(() {
+                      _selectedFilter = value;
+                    });
+                  },
                 ),
               );
             },
           ),
-
-          const SizedBox(height: 8),
 
           // Transactions List
           Expanded(
@@ -407,7 +309,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                         Icon(
                           Icons.error_outline,
                           size: 64,
-                          color: Colors.red[300],
+                          color: colorScheme.error,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -453,218 +355,78 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                         Icon(
                           Icons.receipt_long_outlined,
                           size: 64,
-                          color: Colors.grey[400],
+                          color: colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           _searchQuery.isNotEmpty
                               ? 'No transactions found for "$_searchQuery"'
-                              : _selectedFilter == 'all'
-                              ? 'No transactions found'
-                              : 'No $_selectedFilter transactions found',
+                              : 'No transactions found',
                           style: const TextStyle(fontSize: 18),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Tap the + button to add a transaction',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
                   );
                 }
 
+                // Sort newest-first, then group by day bucket preserving order.
+                final sorted = [...filteredTransactions]
+                  ..sort((a, b) => b.date.compareTo(a.date));
+
+                const groupOrder = ['TODAY', 'YESTERDAY', 'EARLIER'];
+                final grouped = <String, List<model.Transaction>>{};
+                for (final t in sorted) {
+                  grouped.putIfAbsent(_dayGroup(t.date), () => []).add(t);
+                }
+
+                final slivers = <Widget>[];
+                for (final group in groupOrder) {
+                  final items = grouped[group];
+                  if (items == null || items.isEmpty) continue;
+                  slivers.add(
+                    SectionHeader(group, padding: const EdgeInsets.fromLTRB(2, 10, 2, 6)),
+                  );
+                  slivers.add(
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      color: colorScheme.surfaceContainer,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < items.length; i++) ...[
+                              if (i > 0) FinanceListRow.divider(context),
+                              _buildTransactionRow(
+                                context,
+                                transactionProvider,
+                                categoryProvider,
+                                items[i],
+                                anomaliesById[items[i].id],
+                                symbol,
+                                finance,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
                 return RefreshIndicator(
                   onRefresh: () => transactionProvider.loadTransactions(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredTransactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = filteredTransactions[index];
-                      final categoryId = transaction.categoryId;
-                      final category = categoryId == null
-                          ? null
-                          : categoryProvider.getCategoryById(categoryId);
-
-                      final anomaly = transaction.id == null
-                          ? null
-                          : anomaliesById[transaction.id];
-                      final categoryName = category?.name ?? 'Uncategorised';
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: category != null
-                                  ? _hexToColor(category.color ?? '#FF6B6B')
-                                  : Colors.grey,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              category != null
-                                  ? _getIconData(category.icon ?? 'category')
-                                  : Icons.category,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          title: Text(
-                            category?.name ?? 'Uncategorised',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (transaction.description != null)
-                                Text(
-                                  transaction.description!,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              Text(
-                                DateFormat('MMM d, y').format(transaction.date),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              // A2: subtle inline anomaly flag.
-                              if (anomaly != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: GestureDetector(
-                                    onTap: () => _showAnomalyDetail(
-                                      transaction,
-                                      anomaly,
-                                      symbol,
-                                      categoryName,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.warning_amber_rounded,
-                                          size: 14,
-                                          color: Colors.amber[700],
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Unusually large',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.amber[800],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    CurrencyFormatter.formatSigned(
-                                      symbol,
-                                      transaction.amount,
-                                      isIncome: transaction.type == 'income',
-                                    ),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: transaction.type == 'income'
-                                          ? Colors.green
-                                          : Colors.red,
-                                    ),
-                                  ),
-                                  Text(
-                                    transaction.type.toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: transaction.type == 'income'
-                                          ? Colors.green
-                                          : Colors.red,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              PopupMenuButton<String>(
-                                onSelected: (value) async {
-                                  switch (value) {
-                                    case 'edit':
-                                      final result = await Navigator.of(context)
-                                          .push(
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  AddTransactionScreen(
-                                                    transaction: transaction,
-                                                  ),
-                                            ),
-                                          );
-                                      if (result == true) {
-                                        transactionProvider.loadTransactions();
-                                      }
-                                      break;
-                                    case 'delete':
-                                      await _deleteTransaction(transaction);
-                                      break;
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Edit'),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.delete,
-                                          size: 20,
-                                          color: Colors.red,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Delete',
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          onTap: () async {
-                            final result = await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => AddTransactionScreen(
-                                  transaction: transaction,
-                                ),
-                              ),
-                            );
-                            if (result == true) {
-                              // Transaction was updated, refresh the list
-                              transactionProvider.loadTransactions();
-                            }
-                          },
-                        ),
-                      );
-                    },
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    children: slivers,
                   ),
                 );
               },
@@ -688,6 +450,157 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           }
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildTransactionRow(
+    BuildContext context,
+    TransactionProvider transactionProvider,
+    CategoryProvider categoryProvider,
+    model.Transaction transaction,
+    SpendingAnomaly? anomaly,
+    String symbol,
+    FinanceColors finance,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isIncome = transaction.type == 'income';
+    final amountColor = isIncome ? finance.income : finance.expense;
+    final categoryId = transaction.categoryId;
+    final category = categoryId == null
+        ? null
+        : categoryProvider.getCategoryById(categoryId);
+    final categoryName = category?.name ?? 'Uncategorised';
+
+    // Subtitle: "Category · date" plus the optional description/anomaly flag.
+    final metaParts = <String>[
+      categoryName,
+      DateFormat('MMM d, y').format(transaction.date),
+    ];
+    final subtitleChildren = <Widget>[
+      Text(
+        metaParts.join(' · '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+      ),
+      if (transaction.description != null &&
+          transaction.description!.isNotEmpty)
+        Text(
+          transaction.description!,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+        ),
+      // A2: subtle inline anomaly flag.
+      if (anomaly != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: GestureDetector(
+            onTap: () => _showAnomalyDetail(
+              transaction,
+              anomaly,
+              symbol,
+              categoryName,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: 14,
+                  color: finance.warning,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Unusually large',
+                  style: TextStyle(fontSize: 12, color: finance.warning),
+                ),
+              ],
+            ),
+          ),
+        ),
+    ];
+
+    return FinanceListRow(
+      title: categoryName,
+      colorHex: category?.color,
+      iconName: category?.icon,
+      subtitleWidget: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: subtitleChildren,
+      ),
+      onTap: () async {
+        final result = await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) =>
+                AddTransactionScreen(transaction: transaction),
+          ),
+        );
+        if (result == true) {
+          transactionProvider.loadTransactions();
+        }
+      },
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            CurrencyFormatter.formatSigned(
+              symbol,
+              transaction.amount,
+              isIncome: isIncome,
+            ),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: amountColor,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              switch (value) {
+                case 'edit':
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AddTransactionScreen(transaction: transaction),
+                    ),
+                  );
+                  if (result == true) {
+                    transactionProvider.loadTransactions();
+                  }
+                  break;
+                case 'delete':
+                  await _deleteTransaction(transaction);
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 8),
+                    Text('Edit'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

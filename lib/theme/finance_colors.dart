@@ -71,9 +71,15 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
 }
 
 /// Convenience accessor so screens can read finance colours without the verbose
-/// `extension<FinanceColors>()!` dance.
+/// `extension<FinanceColors>()` dance.
 extension FinanceColorsX on ThemeData {
-  /// The app's semantic finance colours. Always present (registered in
-  /// `AppTheme`), so the non-null assertion is safe.
-  FinanceColors get financeColors => extension<FinanceColors>()!;
+  /// The app's semantic finance colours.
+  ///
+  /// `AppTheme` registers [FinanceColors.standard] on every theme, so this is
+  /// normally the registered instance. If a [ThemeData] without the extension
+  /// is used (e.g. a bare `MaterialApp` in a widget test), it falls back to
+  /// [FinanceColors.standard] rather than throwing — the finance colours are
+  /// theme-independent constants, so the fallback is always correct.
+  FinanceColors get financeColors =>
+      extension<FinanceColors>() ?? FinanceColors.standard;
 }

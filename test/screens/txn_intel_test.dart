@@ -51,8 +51,8 @@ void main() {
     await tester.pumpWidget(buildApp(const AddTransactionScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Add Transaction'), findsOneWidget);
-    expect(find.text('Description (Optional)'), findsOneWidget);
+    expect(find.text('Add transaction'), findsOneWidget);
+    expect(find.text('Description'), findsOneWidget);
   });
 
   testWidgets(
@@ -83,20 +83,35 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Description (Optional)'),
+        find.widgetWithText(TextFormField, 'e.g. Woolworths'),
         'Woolworths',
       );
       // Wait out the 400ms debounce.
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
-      expect(find.text('Suggested: Food & Dining'), findsOneWidget);
+      expect(
+        find.textContaining('Suggested category: Food & Dining'),
+        findsOneWidget,
+      );
 
-      await tester.tap(find.text('Suggested: Food & Dining'));
+      // Apply the suggestion via its button (scroll it into view first, as
+      // the banner sits at the bottom of the scrollable form).
+      final applyButton = find.widgetWithText(TextButton, 'Apply');
+      await tester.scrollUntilVisible(
+        applyButton,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(applyButton);
       await tester.pumpAndSettle();
 
-      // Chip disappears once a category is chosen.
-      expect(find.text('Suggested: Food & Dining'), findsNothing);
+      // Banner disappears once a category is chosen.
+      expect(
+        find.textContaining('Suggested category: Food & Dining'),
+        findsNothing,
+      );
     },
   );
 

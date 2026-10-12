@@ -113,6 +113,14 @@ class MiniStatRow extends StatelessWidget {
       if (i > 0) children.add(const SizedBox(width: 12));
       children.add(Expanded(child: tiles[i]));
     }
-    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+    // IntrinsicHeight lets the tiles share a common (content-derived) height
+    // via CrossAxisAlignment.stretch WITHOUT requiring a bounded height from
+    // the parent — safe inside a SingleChildScrollView/Column.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
   }
 }

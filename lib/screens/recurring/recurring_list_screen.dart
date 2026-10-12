@@ -7,6 +7,8 @@ import '../../providers/transaction_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/recurring_transaction.dart';
 import '../../utils/currency.dart';
+import '../../theme/finance_colors.dart';
+import '../../widgets/redesign/redesign.dart';
 
 class RecurringListScreen extends StatefulWidget {
   const RecurringListScreen({super.key});
@@ -120,16 +122,40 @@ class _RecurringListScreenState extends State<RecurringListScreen> {
     }
   }
 
-  String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
+  String _formatDate(DateTime d) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final symbol = context.watch<SettingsController>().currencySymbol;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Recurring Transactions'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Recurring'),
+        backgroundColor: colorScheme.surface,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add recurring',
+            onPressed: () => _openForm(),
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -142,7 +168,7 @@ class _RecurringListScreenState extends State<RecurringListScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.repeat,
-                            size: 64, color: Colors.grey[400]),
+                            size: 64, color: colorScheme.onSurfaceVariant),
                         const SizedBox(height: 16),
                         const Text(
                           'No recurring transactions yet',
@@ -151,7 +177,7 @@ class _RecurringListScreenState extends State<RecurringListScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Add a rule to automate repeating income or expenses',
-                          style: TextStyle(color: Colors.grey[600]),
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -159,122 +185,148 @@ class _RecurringListScreenState extends State<RecurringListScreen> {
                   );
                 }
 
+                final now = DateTime.now();
+                final activeCount =
+                    rules.where((r) => r.isActive(now)).length;
+
                 return RefreshIndicator(
                   onRefresh: _loadData,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: rules.length,
-                    separatorBuilder: (_, i) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final rule = rules[index];
-                      final isIncome = rule.isIncome;
-                      final now = DateTime.now();
-                      final active = rule.isActive(now);
-                      final nextDue = rule.nextDueDate(now);
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: (isIncome
-                                    ? Colors.green
-                                    : Colors.red)
-                                .withValues(alpha: 0.1),
-                            child: Icon(
-                              isIncome
-                                  ? Icons.add_circle_outline
-                                  : Icons.remove_circle_outline,
-                              color: isIncome ? Colors.green : Colors.red,
-                            ),
-                          ),
-                          title: Text(
-                            rule.description?.isNotEmpty == true
-                                ? rule.description!
-                                : rule.displayCategoryName,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_frequencyLabel(rule.frequency)} · ${rule.displayCategoryName}',
-                              ),
-                              Text(
-                                active
-                                    ? 'Next due: ${_formatDate(nextDue)}'
-                                    : 'Inactive',
-                                style: TextStyle(
-                                  color: active
-                                      ? Colors.grey[600]
-                                      : Colors.orange,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                CurrencyFormatter.formatSigned(
-                                  symbol,
-                                  rule.amount,
-                                  isIncome: isIncome,
-                                ),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: isIncome ? Colors.green : Colors.red,
-                                ),
-                              ),
-                              PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _openForm(recurring: rule);
-                                  } else if (value == 'delete') {
-                                    _deleteRecurring(rule);
-                                  }
-                                },
-                                itemBuilder: (context) => const [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit, size: 20),
-                                        SizedBox(width: 8),
-                                        Text('Edit'),
-                                      ],
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete,
-                                            size: 20, color: Colors.red),
-                                        SizedBox(width: 8),
-                                        Text('Delete',
-                                            style:
-                                                TextStyle(color: Colors.red)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          onTap: () => _openForm(recurring: rule),
-                        ),
-                      );
-                    },
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      InfoBanner(
+                        icon: '🔁',
+                        message:
+                            '$activeCount active ${activeCount == 1 ? 'rule' : 'rules'} · auto-added on their due date',
+                      ),
+                      const SizedBox(height: 14),
+                      const SectionHeader('Active rules'),
+                      _RulesCard(
+                        rules: rules,
+                        symbol: symbol,
+                        now: now,
+                        frequencyLabel: _frequencyLabel,
+                        formatDate: _formatDate,
+                        onTapRule: (rule) => _openForm(recurring: rule),
+                        onEditRule: (rule) => _openForm(recurring: rule),
+                        onDeleteRule: _deleteRecurring,
+                      ),
+                    ],
                   ),
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(),
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
+    );
+  }
+}
+
+/// Card wrapping the list of recurring-rule [FinanceListRow]s.
+class _RulesCard extends StatelessWidget {
+  const _RulesCard({
+    required this.rules,
+    required this.symbol,
+    required this.now,
+    required this.frequencyLabel,
+    required this.formatDate,
+    required this.onTapRule,
+    required this.onEditRule,
+    required this.onDeleteRule,
+  });
+
+  final List<RecurringTransaction> rules;
+  final String symbol;
+  final DateTime now;
+  final String Function(String) frequencyLabel;
+  final String Function(DateTime) formatDate;
+  final ValueChanged<RecurringTransaction> onTapRule;
+  final ValueChanged<RecurringTransaction> onEditRule;
+  final ValueChanged<RecurringTransaction> onDeleteRule;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final finance = Theme.of(context).financeColors;
+
+    final children = <Widget>[];
+    for (var i = 0; i < rules.length; i++) {
+      if (i > 0) children.add(FinanceListRow.divider(context));
+      final rule = rules[i];
+      final isIncome = rule.isIncome;
+      final active = rule.isActive(now);
+      final nextDue = rule.nextDueDate(now);
+      final subtitle = active
+          ? '🔁 ${frequencyLabel(rule.frequency)} · next ${formatDate(nextDue)}'
+          : '🔁 ${frequencyLabel(rule.frequency)} · inactive';
+
+      children.add(
+        FinanceListRow(
+          title: rule.description?.isNotEmpty == true
+              ? rule.description!
+              : rule.displayCategoryName,
+          subtitle: subtitle,
+          colorHex: rule.categoryColor,
+          iconName: rule.categoryIcon,
+          onTap: () => onTapRule(rule),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                CurrencyFormatter.formatSigned(
+                  symbol,
+                  rule.amount,
+                  isIncome: isIncome,
+                ),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: isIncome ? finance.income : finance.expense,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    onEditRule(rule);
+                  } else if (value == 'delete') {
+                    onDeleteRule(rule);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 20),
+                        SizedBox(width: 8),
+                        Text('Edit'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 20, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Delete', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
       ),
+      child: Column(children: children),
     );
   }
 }
