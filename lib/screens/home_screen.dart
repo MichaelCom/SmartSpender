@@ -17,11 +17,11 @@ import '../utils/currency.dart';
 import '../repositories/repositories.dart';
 import '../theme/finance_colors.dart';
 import '../widgets/logo_widget.dart';
-import '../widgets/demo_data_widget.dart';
 import '../widgets/budget_alert_summary.dart';
 import '../widgets/insight_highlight.dart';
 import '../widgets/redesign/redesign.dart';
 import '../debug_screen.dart';
+import '../test_database.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -56,33 +56,41 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: _selectTab,
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+            icon: _NavEmoji('🏠'),
             label: 'Dashboard',
           ),
           NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
+            icon: _NavEmoji('🧾'),
             label: 'Transactions',
           ),
           NavigationDestination(
-            icon: Icon(Icons.category_outlined),
-            selectedIcon: Icon(Icons.category),
+            icon: _NavEmoji('🏷️'),
             label: 'Categories',
           ),
           NavigationDestination(
-            icon: Icon(Icons.pie_chart_outline),
-            selectedIcon: Icon(Icons.pie_chart),
+            icon: _NavEmoji('🎯'),
             label: 'Budgets',
           ),
           NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
+            icon: _NavEmoji('📊'),
             label: 'Reports',
           ),
         ],
       ),
     );
+  }
+}
+
+/// A bottom-navigation icon rendered as an emoji glyph (to match the mobile
+/// mockups, which use emoji for the nav items instead of Material icons).
+class _NavEmoji extends StatelessWidget {
+  const _NavEmoji(this.emoji);
+
+  final String emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(emoji, style: const TextStyle(fontSize: 20));
   }
 }
 
@@ -208,6 +216,89 @@ class _DashboardTabState extends State<DashboardTab> {
     }
   }
 
+  /// Seeds realistic demo data after confirming (it replaces all existing
+  /// data). Shows a loading dialog while seeding, then refreshes the providers.
+  Future<void> _loadDemoData(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Load Demo Data'),
+        content: const Text(
+          'This replaces all existing data with realistic demo data:\n\n'
+          '• 18 categories with icons and colours\n'
+          '• 6 months of transaction history\n'
+          '• Monthly budgets for major categories\n\n'
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Load Demo Data'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // Loading indicator.
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Creating demo data...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final repositories =
+          Provider.of<AppRepositories>(context, listen: false);
+      final categoryProvider =
+          Provider.of<CategoryProvider>(context, listen: false);
+      final transactionProvider =
+          Provider.of<TransactionProvider>(context, listen: false);
+      final budgetProvider =
+          Provider.of<BudgetProvider>(context, listen: false);
+      await seedDemoDataAndTest(repositories);
+
+      await categoryProvider.loadCategories();
+      await transactionProvider.loadTransactions();
+      await budgetProvider.loadBudgets();
+
+      if (context.mounted) {
+        Navigator.of(context).pop(); // close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Demo data created successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop(); // close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating demo data: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
   void _refreshData() {
     if (mounted) {
       Provider.of<TransactionProvider>(
@@ -261,6 +352,9 @@ class _DashboardTabState extends State<DashboardTab> {
                     ),
                   );
                   break;
+                case 'load_demo':
+                  await _loadDemoData(context);
+                  break;
                 case 'clear_data':
                   await _clearAllData(context);
                   break;
@@ -294,6 +388,16 @@ class _DashboardTabState extends State<DashboardTab> {
                     Icon(Icons.bug_report, size: 20),
                     SizedBox(width: 8),
                     Text('View Database'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'load_demo',
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_awesome, size: 20),
+                    SizedBox(width: 8),
+                    Text('Load Demo Data'),
                   ],
                 ),
               ),
@@ -427,11 +531,6 @@ class _DashboardTabState extends State<DashboardTab> {
                 symbol,
                 financeColors,
               ),
-
-              const SizedBox(height: 24),
-
-              // Demo data helper (testing aid; renders its own content).
-              const DemoDataWidget(),
             ],
           );
         },

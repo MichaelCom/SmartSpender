@@ -19,8 +19,25 @@ Color categoryColorFromHex(String? hex, {Color fallback = const Color(0xFF9E9E9E
 /// This is the single source of truth for the icon-name → [IconData] mapping;
 /// screens must not keep their own copies. The keys match the names persisted
 /// by the add-category flow (see [categoryIconChoices]).
+///
+/// Some data sources (e.g. the demo-data seeder) store an emoji glyph rather
+/// than a Material icon name. Those are not in this map; use [categoryIconIsEmoji]
+/// to detect them and render the glyph as text instead (see [CategoryIconChip]).
 IconData categoryIconFromName(String? name) {
   return _iconByName[name] ?? Icons.category;
+}
+
+/// Whether a stored icon value should be rendered as an emoji/text glyph
+/// rather than a Material [IconData].
+///
+/// True when [value] is non-empty, is not a known Material icon name, and
+/// contains at least one non-ASCII (pictographic) character. This lets the app
+/// honour both conventions in the data: Material icon names from the
+/// add-category picker and emoji glyphs from the demo-data seeder.
+bool categoryIconIsEmoji(String? value) {
+  if (value == null || value.isEmpty) return false;
+  if (_iconByName.containsKey(value)) return false;
+  return value.runes.any((r) => r > 0x7F);
 }
 
 const Map<String, IconData> _iconByName = {
@@ -129,6 +146,7 @@ class CategoryIconChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = categoryColorFromHex(colorHex);
+    final glyphSize = iconSize ?? size * 0.45;
     return Container(
       width: size,
       height: size,
@@ -137,11 +155,16 @@ class CategoryIconChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
       ),
       alignment: Alignment.center,
-      child: Icon(
-        categoryIconFromName(iconName),
-        color: Colors.white,
-        size: iconSize ?? size * 0.45,
-      ),
+      child: categoryIconIsEmoji(iconName)
+          ? Text(
+              iconName!,
+              style: TextStyle(fontSize: glyphSize),
+            )
+          : Icon(
+              categoryIconFromName(iconName),
+              color: Colors.white,
+              size: glyphSize,
+            ),
     );
   }
 }
